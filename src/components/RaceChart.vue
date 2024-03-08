@@ -1,67 +1,102 @@
 // src/components/RaceChart.vue
 <template>
   <v-container class="pa-0">
-    <vue-apex-charts
-      type="line"
-      height="550"
-      :options="chartOptions"
-      :series="series"
-    ></vue-apex-charts>
-    <!-- Data table for displaying last splits -->
-    <v-table density="compact">
-      <thead></thead>
-      <tr>
-        <th>Name</th>
-        <th>Distance (km / mi)</th>
-        <th>Last Registration</th>
-      </tr>
-      <tbody>
-        <tr v-for="(split, index) in lastSplitsArray" :key="index">
-          <td>{{ split.name }}</td>
-          <td>{{ split.kmDistance }} / {{ split.mileDistance }}</td>
-          <td>{{ split.time }}</td>
-        </tr>
-      </tbody>
-    </v-table>
+    <v-card flat>
+      <v-tabs v-model="tab" background-color="indigo" dark>
+        <v-tab>Chart</v-tab>
+        <v-tab>Last Splits</v-tab>
+      </v-tabs>
+
+      <v-window v-model="tab">
+        <v-window-item>
+          <!-- Chart tab content -->
+          <vue-apex-charts
+            type="line"
+            height="550"
+            :options="chartOptions"
+            :series="series"
+          ></vue-apex-charts>
+        </v-window-item>
+
+        <v-window-item>
+          <!-- Last Splits tab content -->
+          <v-data-table
+            :headers="headers"
+            :items="dataTable"
+            item-key="name"
+            class="elevation-1"
+            :single-expand="true"
+            :expanded.sync="expanded"
+            item-class="clickable"
+          >
+            <template #item="{ item }">
+              <tr @click="toggleExpand(item)">
+                <td>{{ item.name }}</td>
+                <td>{{ item.kmDistance }} / {{ item.mileDistance }}</td>
+                <td>{{ item.time }}</td>
+              </tr>
+            </template>
+            <template #expanded-item="{ headers, item }">
+              <td :colspan="headers.length">
+                <v-container>
+                  <!-- Here you can structure how you want each runner's splits to be displayed -->
+                  <div
+                    v-for="(split, index) in allSplitsData[item.pid]"
+                    :key="index"
+                  >
+                    {{ split.kmDistance }} km at {{ split.time }}
+                  </div>
+                </v-container>
+              </td>
+            </template>
+          </v-data-table>
+        </v-window-item>
+      </v-window>
+    </v-card>
   </v-container>
 </template>
 
 <script setup>
 import VueApexCharts from "vue3-apexcharts";
-import useRaceData from "@/composables/useRaceData";
-import { useTheme } from "vuetify";
 import { useRaceStore } from "@/stores/useRaceStore";
-import { DateTime } from "luxon";
 
-const raceStore = useRaceStore();
-const lastSplits = computed(() => raceStore.lastSplits);
-const lastSplitsArray = computed(() => {
-  return Object.values(lastSplits.value).sort((a, b) => {
-    return b.kmDistance - a.kmDistance; // Descending order
-  });
+const intervalTime = 3 * 60 * 1000; // 3 minutes in milliseconds
+
+// Define props to receive eventId
+const props = defineProps({
+  eventId: String,
 });
 
-const { data, fetchData } = useRaceData();
-const theme = useTheme();
+const raceStore = useRaceStore();
+const allSplits = computed(() => raceStore.getAllSplits(props.eventId));
+const lastSplits = computed(() => raceStore.getLastSplits(props.eventId));
 
-const formatTime = (totalSeconds) => {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}`;
+// Define the ref for active tab
+const tab = ref(0);
+
+const headers = [
+  { text: "Name", value: "name" },
+  { text: "Distance (km / mi)", value: "distance" },
+  { text: "Last Registration", value: "time" },
+];
+
+// Data for the table below the chart
+const dataTable = computed(() => {
+  return Object.values(lastSplits.value || {}).sort(
+    (a, b) => b.kmDistance - a.kmDistance
+  );
+});
+
+const expanded = ref([]);
+
+const toggleExpand = (item) => {
+  const index = expanded.value.indexOf(item);
+  if (index > -1) expanded.value.splice(index, 1);
+  else expanded.value.push(item);
 };
 
-// Helper function to format pace for the Y-axis labels as HH:MM:SS
-const formatPace = (paceInSeconds) => {
-  const hours = Math.floor(paceInSeconds / 3600);
-  const minutes = Math.floor((paceInSeconds % 3600) / 60);
-  const seconds = Math.floor(paceInSeconds % 60);
-  return `${hours.toString().padStart(2, "0")}:${minutes
-    .toString()
-    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-};
-
+// Define your chart options here
+// Chart options might be static or dynamically adjusted based on the event's data or requirements
 const chartOptions = ref({
   chart: {
     id: "race-chart",
@@ -141,6 +176,7 @@ const chartOptions = ref({
         borderColor: "#311B92", // Color for female record line
         label: {
           borderColor: "#311B92",
+          offsetY: 5,
           style: {
             color: "#fff",
             background: "#311B92",
@@ -167,54 +203,65 @@ const chartOptions = ref({
 const series = ref([]);
 
 const updateSeries = () => {
-  if (data.value && data.value.length > 0) {
-    const runners = {};
-    data.value.forEach((point) => {
-      if (!runners[point.name]) {
-        runners[point.name] = {
-          name: point.name,
-          data: [],
-        };
-      }
-      // Use totalSeconds for the x value, skip the first data point
-      runners[point.name].data.push({ x: point.totalSeconds, y: point.pace });
-    });
-    // Remove the first data point for each runner
-    series.value = Object.values(runners).map((runner) => {
-      if (runner.data.length > 1) {
-        return { ...runner, data: runner.data.slice(1) };
-      }
-      return runner;
-    });
+  // Safeguard against allSplits.value being undefined or null
+  if (!allSplits.value) {
+    console.warn(
+      "No allSplits data available for the given eventId:",
+      props.eventId
+    );
+    series.value = []; // Reset the series to empty array to clear the chart
+    return;
   }
-};
 
-const getTimeSince = (totalSeconds) => {
-  // Calculate the registration time from the race start time
-  const registrationDateTime = raceStore.raceStartTime.plus({
-    seconds: totalSeconds,
+  // Now we can safely use Object.entries on allSplits.value
+  series.value = Object.entries(allSplits.value).map(([pid, splits]) => {
+    // Assumes that splits is an array of split data
+    return {
+      name: splits.length > 0 ? splits[0].name : "Unknown", // Default if name is not available
+      data: splits.map((split) => ({
+        x: split.totalSeconds,
+        y: split.pace,
+      })),
+    };
   });
-
-  // Ensure the current time is in the same timezone as the race for accurate comparison
-  const nowInRaceTimeZone = DateTime.now().setZone(
-    raceStore.raceStartTime.zone
-  );
-
-  // Use Luxon's `toRelative` to get a human-friendly relative time string
-  return registrationDateTime.toRelative({ base: nowInRaceTimeZone });
 };
 
-// Now, we can safely use `updateSeries` in `watch` and `onMounted`
+// Helper function to format time for the X-axis
+const formatTime = (totalSeconds) => {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}`;
+};
+
+// Helper function to format pace for the Y-axis
+const formatPace = (paceInSeconds) => {
+  const hours = Math.floor(paceInSeconds / 3600);
+  const minutes = Math.floor((paceInSeconds % 3600) / 60);
+  const seconds = Math.floor(paceInSeconds % 60);
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
+};
+
+let dataFetchInterval;
+
 onMounted(async () => {
-  await fetchData();
-  updateSeries();
-  setInterval(async () => {
-    await fetchData();
-    updateSeries();
-  }, 300000); // Fetch data every 5 minutes
+  if (!allSplits.value) {
+    await raceStore.fetchData(props.eventId);
+  }
+
+  // Set up the interval to fetch new data every 3 minutes
+  dataFetchInterval = setInterval(async () => {
+    await raceStore.fetchData(props.eventId);
+  }, intervalTime);
 });
 
-watch(() => data.value, updateSeries);
-</script>
+onUnmounted(() => {
+  // Clear the interval when the component is destroyed
+  clearInterval(dataFetchInterval);
+});
 
-<style scoped></style>
+watch(allSplits, updateSeries, { deep: true, immediate: true });
+</script>

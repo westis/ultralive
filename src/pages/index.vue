@@ -1,21 +1,33 @@
 <template>
-  <v-container class="pa-5">
-    <v-row justify="center">
-      <v-col cols="12">
-        <race-timer />
-      </v-col>
-      <v-col cols="12">
-        <race-chart />
-      </v-col>
-    </v-row>
+  <v-container>
+    <v-card>
+      <v-card-title>Events</v-card-title>
+      <v-list density="compact">
+        <v-list-item
+          v-for="(event, id) in eventRegistry"
+          :key="id"
+          @click="goToEvent(id)"
+          class="clickable"
+        >
+          <template v-slot:prepend>
+            <!-- Replace 'mdi-calendar' with your desired icon -->
+            <v-icon icon="mdi-run-fast"></v-icon>
+          </template>
+
+          <v-list-item-title>{{ event.eventName }}</v-list-item-title>
+        </v-list-item>
+      </v-list>
+    </v-card>
   </v-container>
 </template>
 
 <script setup>
-import RaceTimer from "@/components/RaceTimer.vue";
-import RaceChart from "@/components/RaceChart.vue";
-</script>
+import { eventRegistry } from "@/events/eventRegistry";
+import { useRouter } from "vue-router";
 
-<style scoped>
-/* Add any page-specific styling here */
-</style>
+const router = useRouter();
+
+const goToEvent = (eventId) => {
+  router.push(`/events/${eventId}`);
+};
+</script>

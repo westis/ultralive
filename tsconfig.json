@@ -2,6 +2,7 @@
   "compilerOptions": {
     "baseUrl": ".",
     "target": "ESNext",
+    "allowJs": true,
     "useDefineForClassFields": true,
     "module": "ESNext",
     "moduleResolution": "Node",
@@ -14,10 +15,8 @@
     "skipLibCheck": true,
     "noEmit": true,
     "paths": {
-      "@/*": [
-       "src/*"
-      ]
-     }
+      "@/*": ["src/*"]
+    }
   },
   "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.tsx", "src/**/*.vue"],
   "references": [{ "path": "./tsconfig.node.json" }],

@@ -1,4 +1,7 @@
 // src/composables/useRaceData.js
+import { useRaceStore } from "@/stores/useRaceStore";
+import { calculateTotalSeconds } from "@/utils/timeUtils";
+
 const useRaceData = () => {
   const data = ref(null);
   const error = ref(null);
@@ -10,32 +13,21 @@ const useRaceData = () => {
       );
       if (!response.ok) throw new Error("Failed to fetch data");
       const jsonData = await response.json();
-      data.value = jsonData.list.map((entry) => ({
-        time: entry.time,
-        pid: entry.pid,
-        name: entry.name,
-        kmDistance: entry.kmDistance,
-        totalSeconds: calculateTotalSeconds(entry.time), // Add this line
-        pace: calculatePace(entry.time, entry.kmDistance),
-      }));
+      data.value = jsonData.list
+        .filter((entry) => entry.kmDistance > 0)
+        .map((entry) => ({
+          time: entry.time,
+          pid: entry.pid,
+          name: entry.name,
+          kmDistance: entry.kmDistance,
+          totalSeconds: calculateTotalSeconds(entry.time), // Add this line
+          pace: calculatePace(entry.time, entry.kmDistance),
+        }));
+      const raceStore = useRaceStore();
+      raceStore.updateLastSplits(jsonData.list);
     } catch (err) {
       error.value = err.message;
     }
-  };
-
-  // Add this function to your composable
-  const calculateTotalSeconds = (timeString) => {
-    const parts = timeString.split(":").map(parseFloat);
-    let totalSeconds;
-    if (parts.length === 4) {
-      totalSeconds =
-        parts[0] * 86400 + parts[1] * 3600 + parts[2] * 60 + parts[3];
-    } else if (parts.length === 3) {
-      totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
-    } else {
-      throw new Error("Invalid time format");
-    }
-    return totalSeconds;
   };
 
   // Update or add this function

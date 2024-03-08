@@ -6,7 +6,7 @@
 
 // Plugins
 import vuetify from "./vuetify";
-import pinia from "../store";
+import pinia from "../stores";
 import { createRouter, createWebHistory } from "vue-router/auto";
 
 // Types

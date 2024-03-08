@@ -1,18 +1,45 @@
 // src/components/RaceChart.vue
 <template>
-  <v-container>
+  <v-container class="pa-0">
     <vue-apex-charts
       type="line"
+      height="550"
       :options="chartOptions"
       :series="series"
     ></vue-apex-charts>
+    <!-- Data table for displaying last splits -->
+    <v-table density="compact">
+      <thead></thead>
+      <tr>
+        <th>Name</th>
+        <th>Distance (km / mi)</th>
+        <th>Last Registration</th>
+      </tr>
+      <tbody>
+        <tr v-for="(split, index) in lastSplitsArray" :key="index">
+          <td>{{ split.name }}</td>
+          <td>{{ split.kmDistance }} / {{ split.mileDistance }}</td>
+          <td>{{ split.time }}</td>
+        </tr>
+      </tbody>
+    </v-table>
   </v-container>
 </template>
 
 <script setup>
 import VueApexCharts from "vue3-apexcharts";
-import useRaceData from "/src/composables/useRaceData";
+import useRaceData from "@/composables/useRaceData";
 import { useTheme } from "vuetify";
+import { useRaceStore } from "@/stores/useRaceStore";
+import { DateTime } from "luxon";
+
+const raceStore = useRaceStore();
+const lastSplits = computed(() => raceStore.lastSplits);
+const lastSplitsArray = computed(() => {
+  return Object.values(lastSplits.value).sort((a, b) => {
+    return b.kmDistance - a.kmDistance; // Descending order
+  });
+});
 
 const { data, fetchData } = useRaceData();
 const theme = useTheme();
@@ -99,26 +126,38 @@ const chartOptions = ref({
     yaxis: [
       {
         y: (144 * 3600) / 1036.8, // Male record pace (seconds/km)
-        borderColor: "#FF0000", // Color for male record line
+        borderColor: "#263238", // Color for male record line
         label: {
-          borderColor: "#FF0000",
+          borderColor: "#263238",
           style: {
             color: "#fff",
-            background: "#FF0000",
+            background: "#263238",
           },
-          text: "Men's World Record",
+          text: "Men's 6DWorld Record",
         },
       },
       {
         y: (144 * 3600) / 883.631, // Female record pace (seconds/km)
-        borderColor: "#0000FF", // Color for female record line
+        borderColor: "#311B92", // Color for female record line
         label: {
-          borderColor: "#0000FF",
+          borderColor: "#311B92",
           style: {
             color: "#fff",
-            background: "#0000FF",
+            background: "#311B92",
           },
-          text: "Women's World Record",
+          text: "Women's 6D World Record",
+        },
+      },
+      {
+        y: (72 * 3600) / 505.615, // Female record pace (seconds/km)
+        borderColor: "#AD1457", // Color for female record line
+        label: {
+          borderColor: "#AD1457",
+          style: {
+            color: "#fff",
+            background: "#AD1457",
+          },
+          text: "Women's 72h World Record",
         },
       },
     ],
@@ -148,6 +187,21 @@ const updateSeries = () => {
       return runner;
     });
   }
+};
+
+const getTimeSince = (totalSeconds) => {
+  // Calculate the registration time from the race start time
+  const registrationDateTime = raceStore.raceStartTime.plus({
+    seconds: totalSeconds,
+  });
+
+  // Ensure the current time is in the same timezone as the race for accurate comparison
+  const nowInRaceTimeZone = DateTime.now().setZone(
+    raceStore.raceStartTime.zone
+  );
+
+  // Use Luxon's `toRelative` to get a human-friendly relative time string
+  return registrationDateTime.toRelative({ base: nowInRaceTimeZone });
 };
 
 // Now, we can safely use `updateSeries` in `watch` and `onMounted`

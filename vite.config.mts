@@ -8,50 +8,55 @@ import VueRouter from "unplugin-vue-router/vite";
 import Vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
 
 // Utilities
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
 import { fileURLToPath, URL } from "node:url";
 
-// https://vitejs.dev/config/
-export default defineConfig({
-  plugins: [
-    VueRouter(),
-    Layouts(),
-    Vue({
-      template: { transformAssetUrls },
-    }),
-    // https://github.com/vuetifyjs/vuetify-loader/tree/master/packages/vite-plugin#readme
-    Vuetify({
-      autoImport: true,
-      styles: {
-        configFile: "src/styles/settings.scss",
+// Define a function to dynamically set the configuration based on the mode
+export default ({ mode }) => {
+  // Load environment variables based on the current mode
+  process.env = { ...process.env, ...loadEnv(mode, process.cwd()) };
+
+  // Return the Vite configuration
+  return defineConfig({
+    plugins: [
+      VueRouter(),
+      Layouts(),
+      Vue({
+        template: { transformAssetUrls },
+      }),
+      Vuetify({
+        autoImport: true,
+        styles: {
+          configFile: "src/styles/settings.scss",
+        },
+      }),
+      Components(),
+      Fonts({
+        google: {
+          families: [
+            {
+              name: "Roboto",
+              styles: "wght@100;300;400;500;700;900",
+            },
+          ],
+        },
+      }),
+      AutoImport({
+        imports: ["vue", "vue-router"],
+        dts: true,
+        eslintrc: {
+          enabled: true,
+        },
+        vueTemplate: true,
+      }),
+    ],
+    define: { "process.env": {} },
+    resolve: {
+      alias: {
+        "@": fileURLToPath(new URL("./src", import.meta.url)),
       },
-    }),
-    Components(),
-    Fonts({
-      google: {
-        families: [
-          {
-            name: "Roboto",
-            styles: "wght@100;300;400;500;700;900",
-          },
-        ],
-      },
-    }),
-    AutoImport({
-      imports: ["vue", "vue-router"],
-      dts: true,
-      eslintrc: {
-        enabled: true,
-      },
-      vueTemplate: true,
-    }),
-  ],
-  define: { "process.env": {} },
-  resolve: {
-    alias: {
-      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      extensions: [".js", ".json", ".jsx", ".mjs", ".ts", ".tsx", ".vue"],
     },
-    extensions: [".js", ".json", ".jsx", ".mjs", ".ts", ".tsx", ".vue"],
-  },
-  base: "/ultralive/",
-});
+    base: process.env.VITE_APP_BASE_URL,
+  });
+};

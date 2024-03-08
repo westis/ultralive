@@ -5,6 +5,9 @@
     <v-main>
       <router-view />
     </v-main>
+    <v-footer color="primary" app>
+      <span>by Daniel Westergren / ultramarathon.se</span>
+    </v-footer>
   </v-app>
 </template>
 

@@ -5,16 +5,18 @@
  */
 
 // Plugins
-import vuetify from './vuetify'
-import pinia from '../store'
-import router from '../router'
+import vuetify from "./vuetify";
+import pinia from "../store";
+import { createRouter, createWebHistory } from "vue-router/auto";
 
 // Types
-import type { App } from 'vue'
+import type { App } from "vue";
 
-export function registerPlugins (app: App) {
-  app
-    .use(vuetify)
-    .use(router)
-    .use(pinia)
+const router = createRouter({
+  history: createWebHistory(import.meta.env.BASE_URL),
+  // the routes property is handled by the plugin
+});
+
+export function registerPlugins(app: App) {
+  app.use(vuetify).use(router).use(pinia);
 }

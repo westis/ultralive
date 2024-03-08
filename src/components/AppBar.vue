@@ -14,6 +14,7 @@
 </template>
 <script lang="ts" setup>
 import { useTheme } from "vuetify";
+import { computed } from "vue";
 
 const theme = useTheme();
 const isDark = computed(() => theme.global.current.value.dark); // Track if its dark mode

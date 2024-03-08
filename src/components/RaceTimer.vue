@@ -1,8 +1,9 @@
+// components/RaceTimer.vue
 <template>
   <v-row>
     <v-col cols="6" class="pt-0">
-      <v-card class="text-center px-4 py-0">
-        <v-card-title class="text-overline"> Start Time </v-card-title>
+      <v-card class="text-center px-4 py-0 my-0">
+        <v-card-title class="text-overline py-0"> Start Time </v-card-title>
         <v-card-text class="text-subtitle-1">
           {{ raceStartTime.toFormat("yyyy-MM-dd HH:mm:ss") }}
         </v-card-text>
@@ -10,8 +11,8 @@
     </v-col>
 
     <v-col cols="6" class="pt-0">
-      <v-card class="text-center px-4 py-0">
-        <v-card-title class="text-overline"> Elapsed Time </v-card-title>
+      <v-card class="text-center px-4 py-0 my-0">
+        <v-card-title class="text-overline py-0"> Elapsed Time </v-card-title>
         <v-card-text class="text-subtitle-1">
           {{ formattedTime }}
         </v-card-text>

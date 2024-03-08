@@ -32,9 +32,9 @@ export default {
         year: 2024,
         month: 3,
         day: 6,
-        hour: 12,
-        minute: 0,
-        second: 0,
+        hour: 9,
+        minute: 5,
+        second: 4,
       },
       { zone: "UTC-08:00" } // Timezone in the second argument
     );

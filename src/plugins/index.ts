@@ -18,10 +18,18 @@ export function registerPlugins(app: App) {
   });
 
   router.beforeEach((to, from, next) => {
-    const redirectPath = sessionStorage.redirect;
-    if (redirectPath) {
+    const storedUrl = sessionStorage.redirect;
+    if (storedUrl) {
       delete sessionStorage.redirect;
-      next(redirectPath); // Directly use the redirectPath
+      // Create a URL object from the stored URL to parse it
+      const redirectUrl = new URL(storedUrl);
+      // Extract the pathname and search params, and hash (if any) relative to the app's base
+      const basePath = import.meta.env.VITE_APP_BASE_URL;
+      const relativePath =
+        redirectUrl.pathname.replace(basePath, "") +
+        redirectUrl.search +
+        redirectUrl.hash;
+      next(relativePath);
     } else {
       next(); // Proceed as normal
     }

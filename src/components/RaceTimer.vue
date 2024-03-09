@@ -51,8 +51,12 @@ const props = defineProps({
 });
 
 // Assuming the event URLs are constants for now
-const eventOfficialPage = "https://www.lululemonfurther.com/";
-const eventFacebookPage = "https://www.facebook.com/groups/1162388407189194";
+const eventOfficialPage = computed(
+  () => eventRegistry[props.eventId].eventOfficialPage
+);
+const eventFacebookPage = computed(
+  () => eventRegistry[props.eventId].eventFacebookPage
+);
 const eventName = eventRegistry[props.eventId].eventName;
 const raceStore = useRaceStore();
 const raceStartTime = computed(() => raceStore.getRaceStartTime(props.eventId));

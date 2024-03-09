@@ -12,6 +12,8 @@ export const eventRegistry = {
       zone: "UTC-08:00",
     }),
     raceDuration: "PT144H",
+    eventOfficialPage: "https://www.lululemonfurther.com/",
+    eventFacebookPage: "https://www.facebook.com/groups/1162388407189194",
   },
   "torino-24h": {
     // This is the key for the new event
@@ -22,6 +24,8 @@ export const eventRegistry = {
       zone: "UTC+01:00", // Adjust the timezone according to the event location
     }),
     raceDuration: "PT24H",
+    eventOfficialPage: "https://my.raceresult.com/280730/live",
+    eventFacebookPage: "",
   },
   // "2024-03-09-skovde-6h": {
   //   eventName: "Skovde 6 Hours",

@@ -1,6 +1,9 @@
 // src/api/2024-03-09-torino-24h.js
 import { Duration } from "luxon";
-import { calculateTotalSeconds, estimateDistance } from "@/utils/timeUtils";
+import {
+  calculateMilePaceFromKmPace,
+  estimateDistance,
+} from "@/utils/timeUtils";
 import { eventRegistry } from "@/events/eventRegistry";
 
 // Unique event ID for the Torino event
@@ -23,6 +26,8 @@ export async function fetchEventData_20240309_torino24h() {
     const paceParts = entry.d12.split(":");
     const paceInSecondsPerKm =
       parseInt(paceParts[0], 10) * 60 + parseInt(paceParts[1], 10);
+
+    const milePace = calculateMilePaceFromKmPace(paceInSecondsPerKm);
 
     // Convert d11 (km distance) from "20,260" to a float
     const kmDistance = parseFloat(entry.d11.replace(",", "."));
@@ -62,7 +67,8 @@ export async function fetchEventData_20240309_torino24h() {
       mileDistance: mileDistance,
       totalSeconds: totalTimeInSeconds,
       estimatedDistance: estimatedTotalDistance, // Assuming direct distance covered
-      pace: entry.d12,
+      kmPace: entry.d12,
+      milePace: milePace,
     };
   });
 }

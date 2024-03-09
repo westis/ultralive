@@ -2,7 +2,7 @@
 import {
   calculateTotalSeconds,
   estimateDistance,
-  calculatePace,
+  calculatePaces,
 } from "@/utils/timeUtils";
 import { eventRegistry } from "@/events/eventRegistry";
 import { Duration } from "luxon";
@@ -32,6 +32,10 @@ export async function fetchEventData_20240305_further6days() {
         totalRaceDurationInSeconds,
         parseFloat(entry.kmDistance) // Ensure kmDistance is a number
       );
+      const { kmPace, milePace } = calculatePaces(
+        entry.time,
+        parseFloat(entry.kmDistance)
+      );
 
       return {
         pid: entry.pid,
@@ -41,7 +45,8 @@ export async function fetchEventData_20240305_further6days() {
         mileDistance: parseFloat(entry.mileDistance), // Convert mileDistance to a number
         totalSeconds: totalSeconds,
         estimatedDistance: estimatedTotalDistance,
-        pace: calculatePace(entry.time, parseFloat(entry.kmDistance)), // Use the numeric value for calculation
+        kmPace,
+        milePace,
       };
     });
 }

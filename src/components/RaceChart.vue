@@ -47,7 +47,7 @@
                     <thead>
                       <tr>
                         <th class="text-left">Time</th>
-                        <th class="text-left">Distance (km / mi)</th>
+                        <th class="text-left">Distance</th>
                         <th class="text-left">Average Pace</th>
                       </tr>
                     </thead>
@@ -64,7 +64,10 @@
                             } km / ${split.mileDistance.toFixed(2)} mi`
                           }}
                         </td>
-                        <td>{{ split.pace }}</td>
+                        <td>
+                          {{ split.kmPace }} min/km -
+                          {{ split.milePace }} min/mi
+                        </td>
                       </tr>
                     </tbody>
                   </template>
@@ -108,7 +111,7 @@ const expanded = ref([]);
 
 const headers = ref([
   { title: "Name", key: "name" },
-  { title: "Distance (km / mi)", key: "distance" },
+  { title: "Distance", key: "distance" },
   { title: "Estimated Distance", key: "estimatedDistance" }, // Add this line
   { title: "Last Registration", key: "time" },
 ]);
@@ -141,7 +144,8 @@ const dataTable = computed(() => {
       // Round estimatedDistance to two decimals
       estimatedDistance: `${item.estimatedDistance.toFixed(2)} km`,
       time: formatTimeWithSeconds(item.totalSeconds),
-      // Use formatTimeWithSeconds or a custom formatter for 'time'
+      kmPace: item.kmPace,
+      milePace: item.milePace,
     }))
     .sort((a, b) => b.kmDistance - a.kmDistance);
 });

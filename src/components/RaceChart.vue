@@ -270,12 +270,23 @@ const updateSeries = () => {
       data: filteredSplits.map((split) => ({
         x: split.totalSeconds,
         y: split.estimatedDistance,
-        formattedDistance: `${split.kmDistance.toFixed(
-          2
-        )} km / ${split.mileDistance.toFixed(2)} mi`,
-        formattedEstimatedDistance: `${split.estimatedDistance.toFixed(
-          2
-        )} km / ${(split.estimatedDistance * 0.621371).toFixed(2)} mi`,
+        formattedDistance: `${
+          typeof split.kmDistance === "number"
+            ? split.kmDistance.toFixed(2)
+            : "N/A"
+        } km / ${
+          typeof split.mileDistance === "number"
+            ? split.mileDistance.toFixed(2)
+            : "N/A"
+        } mi`,
+        formattedEstimatedDistance: `${
+          typeof split.estimatedDistance === "number"
+            ? split.estimatedDistance.toFixed(2)
+            : "N/A"
+        } km / ${(typeof split.estimatedDistance === "number"
+          ? split.estimatedDistance * 0.621371
+          : "N/A"
+        ).toFixed(2)} mi`,
       })),
     };
   });

@@ -19,30 +19,29 @@ export async function fetchEventData_20240305_further6days() {
   console.log("Received data:", jsonData);
 
   const raceDetails = eventRegistry[eventId];
-  // Convert raceDuration from ISO 8601 to total seconds
   const totalRaceDurationInSeconds = Duration.fromISO(
     raceDetails.raceDuration
   ).as("seconds");
 
   return jsonData.list
-    .filter((entry) => entry.kmDistance > 0)
+    .filter((entry) => parseFloat(entry.kmDistance) > 0)
     .map((entry) => {
       const totalSeconds = calculateTotalSeconds(entry.time);
       const estimatedTotalDistance = estimateDistance(
         totalSeconds,
         totalRaceDurationInSeconds,
-        entry.kmDistance
+        parseFloat(entry.kmDistance) // Ensure kmDistance is a number
       );
 
       return {
         pid: entry.pid,
         name: entry.name,
         time: entry.time,
-        kmDistance: entry.kmDistance,
-        mileDistance: entry.mileDistance,
+        kmDistance: parseFloat(entry.kmDistance), // Convert kmDistance to a number
+        mileDistance: parseFloat(entry.mileDistance), // Convert mileDistance to a number
         totalSeconds: totalSeconds,
         estimatedDistance: estimatedTotalDistance,
-        pace: calculatePace(entry.time, entry.kmDistance),
+        pace: calculatePace(entry.time, parseFloat(entry.kmDistance)), // Use the numeric value for calculation
       };
     });
 }

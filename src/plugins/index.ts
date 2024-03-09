@@ -17,6 +17,21 @@ const router = createRouter({
   // the routes property is handled by the plugin
 });
 
+// Add navigation guard for handling GitHub Pages redirection
+router.beforeEach((to, from, next) => {
+  const redirectPath = sessionStorage.redirect;
+  if (redirectPath) {
+    delete sessionStorage.redirect;
+    if (to.path === "/") {
+      next(redirectPath);
+    } else {
+      next();
+    }
+  } else {
+    next();
+  }
+});
+
 export function registerPlugins(app: App) {
   app.use(vuetify).use(router).use(pinia);
 }

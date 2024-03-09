@@ -214,23 +214,56 @@ const updateSeries = () => {
   });
 };
 
-// Update chart annotations based on the event data
+// Function to update chart annotations dynamically based on the event
 function updateChartAnnotations() {
   const eventInfo = eventRegistry[props.eventId];
-  if (!eventInfo || !eventInfo.records) return;
+  if (!eventInfo || !eventInfo.annotations) return;
 
-  chartOptions.value.annotations.yaxis = eventInfo.records.map((record) => ({
-    y: record.value,
-    borderColor: record.color,
+  const yAnnotations = eventInfo.annotations.map((record) => ({
+    y: record.distance,
+    borderColor: record.color, // Use the color property for the border
     label: {
-      borderColor: record.color,
+      borderColor: record.color, // Use the color property for the label border
       style: {
-        color: "#fff",
-        background: record.color,
+        color: "#fff", // You can keep the text color white for contrast
+        background: record.color, // Use the color property for the background
       },
-      text: record.label,
+      text: record.name,
     },
   }));
+
+  chartOptions.value.annotations.yaxis = yAnnotations;
+  adjustYAxisBounds(eventInfo.annotations, series.value);
+}
+
+function adjustYAxisBounds(records) {
+  // Extract distances from records
+  const recordDistances = records.map((record) => record.distance);
+  // Find the min and max record distances
+  const minRecordDistance = Math.min(...recordDistances);
+  const maxRecordDistance = Math.max(...recordDistances);
+
+  // Extract all Y values (distances) from the series data
+  const dataPointsYValues = series.value.flatMap((s) =>
+    s.data.map((point) => point.y)
+  );
+  // Find the min and max values from the series data
+  const minDataPoint = Math.min(...dataPointsYValues);
+  const maxDataPoint = Math.max(...dataPointsYValues);
+
+  // Determine the overall min and max values to set on the Y-axis
+  const minYValue = Math.min(minRecordDistance, minDataPoint);
+  const maxYValue = Math.max(maxRecordDistance, maxDataPoint);
+
+  // Optionally, add a buffer to these values for better chart aesthetics
+  const buffer = (maxYValue - minYValue) * 0.05; // Adjust buffer size as needed
+
+  // Set the Y-axis range in the chart options
+  chartOptions.value.yaxis = {
+    ...chartOptions.value.yaxis,
+    min: minYValue - buffer,
+    max: maxYValue + buffer,
+  };
 }
 
 // Helper function to format time for the X-axis
@@ -282,7 +315,11 @@ onUnmounted(() => {
 watch(
   data,
   () => {
-    updateSeries(); // Call this function to update the chart series based on the new data
+    updateSeries();
+    const eventInfo = eventRegistry[props.eventId];
+    if (eventInfo && eventInfo.records) {
+      updateChartAnnotations(eventInfo.records); // This will also call adjustYAxisBounds internally
+    }
   },
   { deep: true, immediate: true }
 );

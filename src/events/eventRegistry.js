@@ -14,6 +14,10 @@ export const eventRegistry = {
     raceDuration: "PT144H",
     eventOfficialPage: "https://www.lululemonfurther.com/",
     eventFacebookPage: "https://www.facebook.com/groups/1162388407189194",
+    annotations: [
+      { distance: 1036.8, name: "Men 6D World Record", color: "#FF4560" },
+      { distance: 883.631, name: "Women 6D World Record", color: "#00E396" },
+    ],
   },
   "2024-03-09-torino-24h": {
     // This is the key for the new event
@@ -26,6 +30,16 @@ export const eventRegistry = {
     raceDuration: "PT24H",
     eventOfficialPage: "https://my.raceresult.com/280730/live",
     eventFacebookPage: "",
+    annotations: [
+      { distance: 272.086, name: "Nordic Record (Men)", color: "#008FFB" },
+      {
+        distance: 261.17,
+        name: "European/Nordic Record (Women)",
+        color: "#775DD0",
+      },
+      { distance: 277.439, name: "Course Record (Men)", color: "#008FFB" },
+      { distance: 244.495, name: "Course Record (Women)", color: "#775DD0" },
+    ],
   },
   // "2024-03-09-skovde-6h": {
   //   eventName: "Skovde 6 Hours",

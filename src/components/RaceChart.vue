@@ -21,37 +21,54 @@
         </v-window-item>
 
         <v-window-item>
-          <!-- Last Splits tab content -->
+          <!-- Last Splits content -->
           <v-data-table
+            v-model:expanded="expanded"
             :headers="headers"
             :items="dataTable"
-            item-key="name"
+            item-value="pid"
+            show-expand
             class="elevation-1"
-            :single-expand="true"
-            :expanded.sync="expanded"
-            item-class="clickable"
+            single-expand
+            density="compact"
           >
-            <template #item="{ item }">
-              <tr @click="toggleExpand(item)">
+            <!-- <template v-slot:item="{ item }">
+              <tr>
                 <td>{{ item.name }}</td>
                 <td>{{ item.kmDistance }} / {{ item.mileDistance }}</td>
                 <td>{{ item.estimatedDistance.toFixed(2) }} km</td>
-                <!-- Display estimated distance -->
                 <td>{{ item.time }}</td>
               </tr>
-            </template>
-
-            <template #expanded-item="{ headers, item }">
-              <td :colspan="headers.length">
-                <v-container>
-                  <!-- Here you can structure how you want each runner's splits to be displayed -->
-                  <div
-                    v-for="(split, index) in allSplitsData[item.pid]"
-                    :key="index"
-                  >
-                    {{ split.kmDistance }} km at {{ split.time }}
-                  </div>
-                </v-container>
+            </template> -->
+            <template v-slot:expanded-row="{ item }">
+              <td class="px-5" :colspan="headers.length">
+                <v-table class="text-caption" density="compact">
+                  <template v-slot:default>
+                    <thead>
+                      <tr>
+                        <th class="text-left">Time</th>
+                        <th class="text-left">Distance (km / mi)</th>
+                        <th class="text-left">Average Pace</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="(split, index) in filterSplitsForPid(item.pid)"
+                        :key="index"
+                      >
+                        <td>{{ formatTimeWithSeconds(split.totalSeconds) }}</td>
+                        <td>
+                          {{
+                            `${
+                              split.kmDistance
+                            } km / ${split.mileDistance.toFixed(2)} mi`
+                          }}
+                        </td>
+                        <td>{{ split.pace }}</td>
+                      </tr>
+                    </tbody>
+                  </template>
+                </v-table>
               </td>
             </template>
           </v-data-table>
@@ -79,6 +96,7 @@ const props = defineProps({
 
 const raceStore = useRaceStore();
 const allSplits = computed(() => raceStore.getAllSplits(props.eventId));
+console.log(allSplits.value);
 const lastSplits = computed(() => raceStore.getLastSplits(props.eventId));
 
 // Integration with useRaceData for fetching data, handling loading state, and caching
@@ -88,25 +106,49 @@ const { data, loading, fetchData, lastUpdated } = useRaceData(props.eventId);
 const tab = ref(0);
 const expanded = ref([]);
 
-const headers = [
-  { text: "Name", value: "name" },
-  { text: "Distance (km / mi)", value: "distance" },
-  { text: "Estimated Distance", value: "estimatedDistance" }, // Add this line
-  { text: "Last Registration", value: "time" },
-];
+const headers = ref([
+  { title: "Name", key: "name" },
+  { title: "Distance (km / mi)", key: "distance" },
+  { title: "Estimated Distance", key: "estimatedDistance" }, // Add this line
+  { title: "Last Registration", key: "time" },
+]);
+
+const thresholdSeconds = 10;
+
+function filterSplitsForPid(pid) {
+  const splits = allSplits.value[pid] || [];
+  return splits.reduce((acc, curr) => {
+    if (
+      !acc.length ||
+      Math.abs(curr.totalSeconds - acc[acc.length - 1].totalSeconds) >
+        thresholdSeconds
+    ) {
+      acc.push(curr);
+    }
+    return acc;
+  }, []);
+}
 
 // Data for the table below the chart
 const dataTable = computed(() => {
-  return Object.values(lastSplits.value || {}).sort(
-    (a, b) => b.kmDistance - a.kmDistance
-  );
+  return Object.values(lastSplits.value || {})
+    .map((item) => ({
+      ...item,
+      // Combine kmDistance and mileDistance
+      distance: `${item.kmDistance.toFixed(2)} km / ${item.mileDistance.toFixed(
+        2
+      )} mi`,
+      // Round estimatedDistance to two decimals
+      estimatedDistance: `${item.estimatedDistance.toFixed(2)} km`,
+      time: formatTimeWithSeconds(item.totalSeconds),
+      // Use formatTimeWithSeconds or a custom formatter for 'time'
+    }))
+    .sort((a, b) => b.kmDistance - a.kmDistance);
 });
 
-const toggleExpand = (item) => {
-  const index = expanded.value.indexOf(item);
-  if (index > -1) expanded.value.splice(index, 1);
-  else expanded.value.push(item);
-};
+function toggleExpand(item) {
+  expanded.value = expanded.value.includes(item.pid) ? [] : [item.pid];
+}
 
 // Define your chart options here
 // Chart options might be static or dynamically adjusted based on the event's data or requirements
@@ -159,8 +201,8 @@ const chartOptions = ref({
 
       const name = w.globals.seriesNames[seriesIndex];
       const yValue = series[seriesIndex][dataPointIndex];
-      const estimatedDistance = yValue.toFixed(2) + " km";
-      const kmDistance = data.kmDistance;
+      const estimatedDistance = data.formattedEstimatedDistance;
+      const Distance = data.formattedDistance;
 
       // Accessing the x-axis value (time) from w.globals.seriesX, which holds the time values.
       const timeValue = w.globals.seriesX[seriesIndex][dataPointIndex];
@@ -172,7 +214,7 @@ const chartOptions = ref({
       <div class="pa-2">
       <div style="font-weight: bold;">${name}</div>
       <div>Time: ${formattedTime}</div>
-       <div>Distance: ${kmDistance} km</div> 
+       <div>Distance: ${Distance}</div> 
       <div>Estimated Distance: ${estimatedDistance}</div>
       </div>
     `;
@@ -200,15 +242,40 @@ const updateSeries = () => {
     return;
   }
 
-  // Now we can safely use Object.entries on allSplits.value
   series.value = Object.entries(allSplits.value).map(([pid, splits]) => {
-    // Assumes that splits is an array of split data
+    // Filter duplicates within the threshold before mapping for the chart
+    const filteredSplits = splits.reduce(
+      (filtered, currentSplit, index, array) => {
+        // Always add the first split
+        if (index === 0) {
+          filtered.push(currentSplit);
+          return filtered;
+        }
+
+        // Add the split if it's beyond the threshold from the last split added
+        const lastSplitAdded = filtered[filtered.length - 1];
+        if (
+          Math.abs(lastSplitAdded.totalSeconds - currentSplit.totalSeconds) >
+          thresholdSeconds
+        ) {
+          filtered.push(currentSplit);
+        }
+        return filtered;
+      },
+      []
+    );
+
     return {
-      name: splits.length > 0 ? splits[0].name : "Unknown", // Default if name is not available
-      data: splits.map((split) => ({
+      name: filteredSplits.length > 0 ? filteredSplits[0].name : "Unknown", // Use the runner's name or a default
+      data: filteredSplits.map((split) => ({
         x: split.totalSeconds,
         y: split.estimatedDistance,
-        kmDistance: split.kmDistance,
+        formattedDistance: `${split.kmDistance.toFixed(
+          2
+        )} km / ${split.mileDistance.toFixed(2)} mi`,
+        formattedEstimatedDistance: `${split.estimatedDistance.toFixed(
+          2
+        )} km / ${(split.estimatedDistance * 0.621371).toFixed(2)} mi`,
       })),
     };
   });
@@ -224,6 +291,8 @@ function updateChartAnnotations() {
     borderColor: record.color, // Use the color property for the border
     label: {
       borderColor: record.color, // Use the color property for the label border
+      offsetX: record.offset.x,
+      offsetY: record.offset.y,
       style: {
         color: "#fff", // You can keep the text color white for contrast
         background: record.color, // Use the color property for the background

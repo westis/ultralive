@@ -15,9 +15,7 @@ export const useRaceStore = defineStore("race", {
       }
 
       try {
-        console.log("Fetching data for event:", eventId);
         const splits = await eventConfig.fetchData();
-        console.log("Data received:", splits);
         if (!this.eventsData[eventId]) {
           this.eventsData[eventId] = {
             allSplits: {},

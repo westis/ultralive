@@ -304,15 +304,18 @@ function updateChartAnnotations() {
   const yAnnotations = eventInfo.annotations.map((record) => ({
     y: record.distance,
     borderColor: record.color, // Use the color property for the border
+    strokeDashArray: 5,
+    strokeWidth: 30,
     label: {
       borderColor: record.color, // Use the color property for the label border
-      offsetX: record.offset.x,
-      offsetY: record.offset.y,
+      offsetX: 10,
       style: {
         color: "#fff", // You can keep the text color white for contrast
         background: record.color, // Use the color property for the background
       },
       text: record.name,
+      position: "left",
+      textAnchor: "start",
     },
   }));
 

@@ -16,6 +16,7 @@ export async function fetchEventData_20240305_further6days() {
   );
   if (!response.ok) throw new Error("Failed to fetch ultramarathon2024 data");
   const jsonData = await response.json();
+  console.log("Received data:", jsonData);
 
   const raceDetails = eventRegistry[eventId];
   // Convert raceDuration from ISO 8601 to total seconds

@@ -1,5 +1,7 @@
 // src/api/2024-03-09-torino-24h.js
 import { Duration } from "luxon";
+import { calculateTotalSeconds, estimateDistance } from "@/utils/timeUtils";
+import { eventRegistry } from "@/events/eventRegistry";
 
 // Unique event ID for the Torino event
 const eventId = "2024-03-09-torino-24h"; // Ensure this matches an entry in your event registry
@@ -28,17 +30,38 @@ export async function fetchEventData_20240309_torino24h() {
     // Calculate total time in seconds for the distance covered
     const totalTimeInSeconds = paceInSecondsPerKm * kmDistance;
 
+    // Convert totalTimeInSeconds to a Luxon Duration object
+    const totalTimeDuration = Duration.fromObject({
+      seconds: totalTimeInSeconds,
+    });
+
+    // Format the time as HH:MM:SS.ss
+    const formattedTime = totalTimeDuration.toFormat("hh:mm:ss.SS");
+
     // Convert kmDistance to mileDistance
     const mileDistance = kmDistance * 0.621371;
+
+    // Get total race duration in seconds from the event registry
+    const raceDetails = eventRegistry[eventId];
+    const totalRaceDurationInSeconds = Duration.fromISO(
+      raceDetails.raceDuration
+    ).as("seconds");
+
+    // Calculate estimatedDistance
+    const estimatedTotalDistance = estimateDistance(
+      totalTimeInSeconds,
+      totalRaceDurationInSeconds,
+      kmDistance
+    );
 
     return {
       pid: entry.d3,
       name: entry.d4,
-      time: totalTimeInSeconds, // This is the total time in seconds
+      time: formattedTime, // This is the total time in seconds
       kmDistance: kmDistance,
       mileDistance: mileDistance,
       totalSeconds: totalTimeInSeconds,
-      estimatedDistance: kmDistance, // Assuming direct distance covered
+      estimatedDistance: estimatedTotalDistance, // Assuming direct distance covered
       pace: entry.d12,
     };
   });

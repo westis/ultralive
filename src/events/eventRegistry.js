@@ -15,7 +15,7 @@ export const eventRegistry = {
     eventOfficialPage: "https://www.lululemonfurther.com/",
     eventFacebookPage: "https://www.facebook.com/groups/1162388407189194",
   },
-  "torino-24h": {
+  "2024-03-09-torino-24h": {
     // This is the key for the new event
     eventName: "Torino 24 Hours",
     fetchData: fetchEventData_20240309_torino24h,

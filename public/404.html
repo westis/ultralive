@@ -4,11 +4,11 @@
   <meta charset="utf-8">
   <title>Redirecting...</title>
   <script>
-    // This script will redirect any 404 back to your index.html
-    // with the path information intact for Vue Router to handle
-    sessionStorage.redirect = location.pathname;
+    // Capture the full URL path leading to the 404
+    sessionStorage.redirect = location.href;
   </script>
-  <meta http-equiv="refresh" content="0;URL='/'"></meta>
+  <!-- Adjust the redirect URL to include your SPA's base path -->
+  <meta http-equiv="refresh" content="0;URL='/ultralive/'"></meta>
 </head>
 <body>
 </body>

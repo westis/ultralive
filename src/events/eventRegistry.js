@@ -18,13 +18,13 @@ export const eventRegistry = {
       {
         distance: 1036.8,
         name: "Men 6D World Record",
-        color: "rgba(255, 70, 96, 0.7)",
+        color: "#388E3C",
         offset: { x: -40, y: 0 },
       },
       {
         distance: 883.631,
         name: "Women 6D World Record",
-        color: "rgba(0, 227, 150, 0.7)",
+        color: "#512DA8",
         offset: { x: -40, y: 0 },
       },
     ],

@@ -166,6 +166,7 @@ const chartOptions = ref({
       enabled: true,
     },
   },
+
   xaxis: {
     type: "numeric",
     title: {
@@ -218,7 +219,7 @@ const chartOptions = ref({
       <div class="pa-2">
       <div style="font-weight: bold;">${name}</div>
       <div>Time: ${formattedTime}</div>
-       <div>Distance: ${Distance}</div> 
+       <div>Distance: ${Distance}</div>
       <div>Estimated Distance: ${estimatedDistance}</div>
       </div>
     `;
@@ -309,6 +310,7 @@ function updateChartAnnotations() {
     label: {
       borderColor: record.color, // Use the color property for the label border
       offsetX: 10,
+      offsetY: record.offset.y,
       style: {
         color: "#fff", // You can keep the text color white for contrast
         background: record.color, // Use the color property for the background

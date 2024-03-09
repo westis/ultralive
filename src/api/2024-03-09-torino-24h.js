@@ -5,12 +5,12 @@ import { Duration } from "luxon";
 const eventId = "2024-03-09-torino-24h"; // Ensure this matches an entry in your event registry
 
 // Predefined list of participant IDs for the event
-const participantIds = [35, 44]; // Replace "ID1", "ID2", "ID3" with actual participant IDs
+const participantIds = ["35", "44"]; // Replace "ID1", "ID2", "ID3" with actual participant IDs
 
 export async function fetchEventData_20240309_torino24h() {
   // Convert the list of participant IDs into a comma-separated string for the URL
   const idsParam = participantIds.join(",");
-  const url = "https://live.spolp.se/torino/?id=${idsParam}";
+  const url = `https://live.spolp.se/torino/?id=${idsParam}`;
 
   const response = await fetch(url);
   if (!response.ok) throw new Error("Failed to fetch Torino event data");

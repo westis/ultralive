@@ -42,7 +42,6 @@
 
 <script setup>
 import { eventRegistry } from "@/events/eventRegistry";
-import { defineProps, computed, ref, onMounted } from "vue";
 import { useRaceStore } from "@/stores/useRaceStore";
 import { DateTime, Duration } from "luxon";
 

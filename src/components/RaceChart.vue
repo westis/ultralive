@@ -10,7 +10,9 @@
       <v-window v-model="tab">
         <v-window-item>
           <!-- Chart tab content -->
+          <div v-if="loading">Loading data...</div>
           <vue-apex-charts
+            v-else
             type="line"
             height="550"
             :options="chartOptions"
@@ -56,12 +58,17 @@
         </v-window-item>
       </v-window>
     </v-card>
+    <div class="text-caption" v-if="lastUpdated">
+      Last updated: {{ lastUpdated.toLocaleString() }}
+    </div>
   </v-container>
 </template>
 
 <script setup>
 import VueApexCharts from "vue3-apexcharts";
 import { useRaceStore } from "@/stores/useRaceStore";
+import { eventRegistry } from "@/events/eventRegistry";
+import useRaceData from "@/composables/useRaceData";
 
 const intervalTime = 3 * 60 * 1000; // 3 minutes in milliseconds
 
@@ -74,8 +81,12 @@ const raceStore = useRaceStore();
 const allSplits = computed(() => raceStore.getAllSplits(props.eventId));
 const lastSplits = computed(() => raceStore.getLastSplits(props.eventId));
 
+// Integration with useRaceData for fetching data, handling loading state, and caching
+const { data, loading, fetchData, lastUpdated } = useRaceData(props.eventId);
+
 // Define the ref for active tab
 const tab = ref(0);
+const expanded = ref([]);
 
 const headers = [
   { text: "Name", value: "name" },
@@ -90,8 +101,6 @@ const dataTable = computed(() => {
     (a, b) => b.kmDistance - a.kmDistance
   );
 });
-
-const expanded = ref([]);
 
 const toggleExpand = (item) => {
   const index = expanded.value.indexOf(item);
@@ -146,9 +155,12 @@ const chartOptions = ref({
     intersect: false,
     theme: "dark",
     custom: function ({ series, seriesIndex, dataPointIndex, w }) {
+      const data = w.config.series[seriesIndex].data[dataPointIndex];
+
       const name = w.globals.seriesNames[seriesIndex];
       const yValue = series[seriesIndex][dataPointIndex];
       const estimatedDistance = yValue.toFixed(2) + " km";
+      const kmDistance = data.kmDistance;
 
       // Accessing the x-axis value (time) from w.globals.seriesX, which holds the time values.
       const timeValue = w.globals.seriesX[seriesIndex][dataPointIndex];
@@ -160,6 +172,7 @@ const chartOptions = ref({
       <div class="pa-2">
       <div style="font-weight: bold;">${name}</div>
       <div>Time: ${formattedTime}</div>
+       <div>Distance: ${kmDistance} km</div> 
       <div>Estimated Distance: ${estimatedDistance}</div>
       </div>
     `;
@@ -169,60 +182,8 @@ const chartOptions = ref({
     show: true,
   },
   annotations: {
-    xaxis: Array.from({ length: 6 }).map((_, index) => ({
-      // 6 days, every 24 hours
-      x: (index + 1) * 86400, // 86400 seconds in a day
-      borderColor: "#999",
-      label: {
-        text: `Day ${index + 1}`,
-        style: {
-          color: "#fff",
-          background: "#777",
-        },
-      },
-    })),
-    yaxis: [
-      {
-        y: 1036.8, // Male record pace (seconds/km)
-        borderColor: "#263238", // Color for male record line
-        label: {
-          borderColor: "#263238",
-          style: {
-            color: "#fff",
-            background: "#263238",
-          },
-          offsetX: -200,
-          text: "Men's 6DWorld Record",
-        },
-      },
-      {
-        y: 883.631, // Female record pace (seconds/km)
-        borderColor: "#311B92", // Color for female record line
-        label: {
-          borderColor: "#311B92",
-          offsetY: 5,
-          style: {
-            color: "#fff",
-            background: "#311B92",
-          },
-          offsetX: -300,
-          text: "Women's 6D World Record",
-        },
-      },
-      {
-        point: {
-          // Add point annotation
-          x: 72 * 3600,
-          y: 505,
-          marker: {
-            shape: "circle",
-            size: 4,
-            fillColor: "#fff",
-            strokeColor: "#AD1457",
-          },
-        },
-      },
-    ],
+    xaxis: [], // Initialize xaxis if needed
+    yaxis: [], // Ensure yaxis is initialized as an empty array
   },
 });
 
@@ -247,10 +208,30 @@ const updateSeries = () => {
       data: splits.map((split) => ({
         x: split.totalSeconds,
         y: split.estimatedDistance,
+        kmDistance: split.kmDistance,
       })),
     };
   });
 };
+
+// Update chart annotations based on the event data
+function updateChartAnnotations() {
+  const eventInfo = eventRegistry[props.eventId];
+  if (!eventInfo || !eventInfo.records) return;
+
+  chartOptions.value.annotations.yaxis = eventInfo.records.map((record) => ({
+    y: record.value,
+    borderColor: record.color,
+    label: {
+      borderColor: record.color,
+      style: {
+        color: "#fff",
+        background: record.color,
+      },
+      text: record.label,
+    },
+  }));
+}
 
 // Helper function to format time for the X-axis
 const formatTime = (totalSeconds) => {
@@ -282,21 +263,37 @@ const formatPace = (paceInSeconds) => {
 
 let dataFetchInterval;
 
-onMounted(async () => {
-  if (!allSplits.value) {
-    await raceStore.fetchData(props.eventId);
-  }
-
-  // Set up the interval to fetch new data every 3 minutes
-  dataFetchInterval = setInterval(async () => {
-    await raceStore.fetchData(props.eventId);
+onMounted(() => {
+  fetchData().then(() => {
+    updateChartAnnotations(); // Call after fetching data
+    updateSeries(); // Ensure series are also updated
+  });
+  dataFetchInterval = setInterval(() => {
+    fetchData().then(() => {
+      updateChartAnnotations(); // Also update annotations periodically with new data
+    });
   }, intervalTime);
 });
 
 onUnmounted(() => {
-  // Clear the interval when the component is destroyed
   clearInterval(dataFetchInterval);
 });
 
-watch(allSplits, updateSeries, { deep: true, immediate: true });
+watch(
+  data,
+  () => {
+    updateSeries(); // Call this function to update the chart series based on the new data
+  },
+  { deep: true, immediate: true }
+);
+
+watch(
+  () => props.eventId,
+  () => {
+    fetchData().then(() => {
+      updateChartAnnotations(); // Ensure annotations are updated when eventId changes
+    });
+  },
+  { immediate: true }
+);
 </script>

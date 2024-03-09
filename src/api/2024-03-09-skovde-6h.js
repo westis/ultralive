@@ -1,64 +1,66 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
-
-// Assuming you have your utility functions defined elsewhere
 const { calculateTotalSeconds, calculatePace } = require("./timeUtils");
 
-// Unique event ID
-const eventId = "your-event-id";
+// Example runner IDs array
+// Update this array with actual IDs for each event
+const runnerIds = ["18379", "18400", "18520"]; // Add more as needed
 
-async function scrapeLapData(runnerId) {
+async function fetchRunnerData(runnerId) {
   const url = `https://www.jogg.se/Resultat/Person.aspx?id=${runnerId}`;
-
   try {
     const response = await axios.get(url);
     const $ = cheerio.load(response.data);
+    const runnerData = [];
 
-    // Extract runner data (assuming header with runner name/id exists)
-    const name = $("#runnerHeaderLabel").text().trim(); // Adjust selector as needed
-    const pid = $("#runnerPID").text().trim() || "Not Found"; // Handle potential missing pid
-
-    // Find the correct lap table
-    const lapTable = $("table.lr_tbl"); // Adjust the selector if needed
-
-    const lapData = [];
-    lapTable.find("tr").each((index, row) => {
-      // Skip the header row
-      if (index === 0) return;
-
-      const $row = $(row);
-
-      const lapNumber = $row.find("td:nth-child(1)").text().trim();
-      const lapDistance = parseFloat(
-        $row.find("td:nth-child(2)").text().trim()
-      );
-      const lapTime = $row.find("td:nth-child(3)").text().trim();
-
-      // Calculations
-      const totalSeconds = calculateTotalSeconds(lapTime);
-      const mileDistance = lapDistance * 0.621371;
-      const pace = calculatePace(lapTime, lapDistance);
-
-      lapData.push({
-        pid: pid,
-        name: name,
-        time: lapTime,
-        kmDistance: lapDistance,
-        mileDistance: mileDistance,
-        totalSeconds: totalSeconds,
-        pace: pace,
-      });
+    $(".lr_tbl tr").each((index, element) => {
+      if (index > 0) {
+        // Skip header row
+        const cols = $(element).find("td");
+        if (cols.length) {
+          // Ensure there are columns to process
+          const kmDistance = parseFloat(
+            $(cols[1])
+              .text()
+              .replace(",", ".")
+              .replace(/\s*km\s*/, "")
+          );
+          const time = $(cols[2]).text().trim();
+          runnerData.push({
+            pid: runnerId,
+            kmDistance,
+            time,
+            totalSeconds: calculateTotalSeconds(time),
+            pace: calculatePace(time, kmDistance),
+          });
+        }
+      }
     });
-
-    return lapData;
+    return runnerData;
   } catch (error) {
-    console.error("Error scraping lap data:", error);
-    throw error;
+    console.error(
+      `Failed to fetch data for runner ID ${runnerId}:`,
+      error.message
+    );
+    return []; // Return an empty array in case of error
   }
 }
 
-// Example usage
-const runnerId = 18333; // Example - change this to the actual runner ID
-scrapeLapData(runnerId)
-  .then((lapData) => console.log(lapData))
-  .catch((error) => console.error("Scraping error:", error));
+async function fetchAllRunnersData() {
+  const allRunnersData = [];
+  for (const runnerId of runnerIds) {
+    const runnerData = await fetchRunnerData(runnerId);
+    allRunnersData.push(...runnerData);
+  }
+  return allRunnersData;
+}
+
+fetchAllRunnersData()
+  .then((data) => {
+    console.log(data); // Do something with the data, e.g., save to a file or database
+  })
+  .catch((error) => {
+    console.error("An error occurred:", error);
+  });
+
+module.exports = { fetchAllRunnersData };

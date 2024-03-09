@@ -1,5 +1,11 @@
-// src/api/2024-03-05-further-6days.js
-import { calculateTotalSeconds, calculatePace } from "@/utils/timeUtils"; // Ensure these utility functions are defined and exported
+// src/api/2024-03-05-further6days.js
+import {
+  calculateTotalSeconds,
+  estimateDistance,
+  calculatePace,
+} from "@/utils/timeUtils";
+import { eventRegistry } from "@/events/eventRegistry";
+import { Duration } from "luxon";
 
 // Unique event ID
 const eventId = "2024-03-05-further-6days";
@@ -11,17 +17,31 @@ export async function fetchEventData_20240305_further6days() {
   if (!response.ok) throw new Error("Failed to fetch ultramarathon2024 data");
   const jsonData = await response.json();
 
-  // Assuming jsonData.list contains your raw event data
+  const raceDetails = eventRegistry[eventId];
+  // Convert raceDuration from ISO 8601 to total seconds
+  const totalRaceDurationInSeconds = Duration.fromISO(
+    raceDetails.raceDuration
+  ).as("seconds");
+
   return jsonData.list
     .filter((entry) => entry.kmDistance > 0)
-    .map((entry) => ({
-      pid: entry.pid,
-      name: entry.name,
-      time: entry.time,
-      kmDistance: entry.kmDistance,
-      mileDistance: entry.mileDistance,
-      totalSeconds: calculateTotalSeconds(entry.time),
-      // Calculate pace here as needed
-      pace: calculatePace(entry.time, entry.kmDistance),
-    }));
+    .map((entry) => {
+      const totalSeconds = calculateTotalSeconds(entry.time);
+      const estimatedTotalDistance = estimateDistance(
+        totalSeconds,
+        totalRaceDurationInSeconds,
+        entry.kmDistance
+      );
+
+      return {
+        pid: entry.pid,
+        name: entry.name,
+        time: entry.time,
+        kmDistance: entry.kmDistance,
+        mileDistance: entry.mileDistance,
+        totalSeconds: totalSeconds,
+        estimatedDistance: estimatedTotalDistance,
+        pace: calculatePace(entry.time, entry.kmDistance),
+      };
+    });
 }

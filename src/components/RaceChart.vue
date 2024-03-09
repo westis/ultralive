@@ -33,9 +33,12 @@
               <tr @click="toggleExpand(item)">
                 <td>{{ item.name }}</td>
                 <td>{{ item.kmDistance }} / {{ item.mileDistance }}</td>
+                <td>{{ item.estimatedDistance.toFixed(2) }} km</td>
+                <!-- Display estimated distance -->
                 <td>{{ item.time }}</td>
               </tr>
             </template>
+
             <template #expanded-item="{ headers, item }">
               <td :colspan="headers.length">
                 <v-container>
@@ -77,6 +80,7 @@ const tab = ref(0);
 const headers = [
   { text: "Name", value: "name" },
   { text: "Distance (km / mi)", value: "distance" },
+  { text: "Estimated Distance", value: "estimatedDistance" }, // Add this line
   { text: "Last Registration", value: "time" },
 ];
 
@@ -125,10 +129,10 @@ const chartOptions = ref({
   },
   yaxis: {
     title: {
-      text: "Pace (min/km)",
+      text: "Estimated Distance (km)",
     },
     labels: {
-      formatter: (val) => formatPace(val), // Use formatPace for Y-axis labels
+      formatter: (val) => val.toFixed(2), // Use formatPace for Y-axis labels
     },
   },
   stroke: {
@@ -141,6 +145,25 @@ const chartOptions = ref({
     shared: true,
     intersect: false,
     theme: "dark",
+    custom: function ({ series, seriesIndex, dataPointIndex, w }) {
+      const name = w.globals.seriesNames[seriesIndex];
+      const yValue = series[seriesIndex][dataPointIndex];
+      const estimatedDistance = yValue.toFixed(2) + " km";
+
+      // Accessing the x-axis value (time) from w.globals.seriesX, which holds the time values.
+      const timeValue = w.globals.seriesX[seriesIndex][dataPointIndex];
+      const formattedTime = timeValue
+        ? formatTimeWithSeconds(timeValue)
+        : "N/A";
+
+      return `
+      <div class="pa-2">
+      <div style="font-weight: bold;">${name}</div>
+      <div>Time: ${formattedTime}</div>
+      <div>Estimated Distance: ${estimatedDistance}</div>
+      </div>
+    `;
+    },
   },
   legend: {
     show: true,
@@ -160,7 +183,7 @@ const chartOptions = ref({
     })),
     yaxis: [
       {
-        y: (144 * 3600) / 1036.8, // Male record pace (seconds/km)
+        y: 1036.8, // Male record pace (seconds/km)
         borderColor: "#263238", // Color for male record line
         label: {
           borderColor: "#263238",
@@ -168,11 +191,12 @@ const chartOptions = ref({
             color: "#fff",
             background: "#263238",
           },
+          offsetX: -200,
           text: "Men's 6DWorld Record",
         },
       },
       {
-        y: (144 * 3600) / 883.631, // Female record pace (seconds/km)
+        y: 883.631, // Female record pace (seconds/km)
         borderColor: "#311B92", // Color for female record line
         label: {
           borderColor: "#311B92",
@@ -181,19 +205,21 @@ const chartOptions = ref({
             color: "#fff",
             background: "#311B92",
           },
+          offsetX: -300,
           text: "Women's 6D World Record",
         },
       },
       {
-        y: (72 * 3600) / 505.615, // Female record pace (seconds/km)
-        borderColor: "#AD1457", // Color for female record line
-        label: {
-          borderColor: "#AD1457",
-          style: {
-            color: "#fff",
-            background: "#AD1457",
+        point: {
+          // Add point annotation
+          x: 72 * 3600,
+          y: 505,
+          marker: {
+            shape: "circle",
+            size: 4,
+            fillColor: "#fff",
+            strokeColor: "#AD1457",
           },
-          text: "Women's 72h World Record",
         },
       },
     ],
@@ -220,7 +246,7 @@ const updateSeries = () => {
       name: splits.length > 0 ? splits[0].name : "Unknown", // Default if name is not available
       data: splits.map((split) => ({
         x: split.totalSeconds,
-        y: split.pace,
+        y: split.estimatedDistance,
       })),
     };
   });
@@ -233,6 +259,15 @@ const formatTime = (totalSeconds) => {
   return `${hours.toString().padStart(2, "0")}:${minutes
     .toString()
     .padStart(2, "0")}`;
+};
+
+const formatTimeWithSeconds = (totalSeconds) => {
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  return `${hours.toString().padStart(2, "0")}:${minutes
+    .toString()
+    .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
 };
 
 // Helper function to format pace for the Y-axis

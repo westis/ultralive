@@ -19,7 +19,7 @@ export const eventRegistry = {
     // This is the key for the new event
     eventName: "Torino 24 Hours",
     fetchData: fetchEventData_20240309_torino24h,
-    raceStartTime: DateTime.fromISO("2024-03-09T10:00:00", {
+    raceStartTime: DateTime.fromISO("2024-03-09T11:00:00", {
       // Assuming the date and time for the example, adjust as needed
       zone: "UTC+01:00", // Adjust the timezone according to the event location
     }),

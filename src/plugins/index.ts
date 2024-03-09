@@ -21,14 +21,9 @@ export function registerPlugins(app: App) {
     const redirectPath = sessionStorage.redirect;
     if (redirectPath) {
       delete sessionStorage.redirect;
-      // Now checking if the navigation is to the base URL of the app
-      if (to.path === router.options.history.base) {
-        next(redirectPath);
-      } else {
-        next();
-      }
+      next(redirectPath); // Directly use the redirectPath
     } else {
-      next();
+      next(); // Proceed as normal
     }
   });
 

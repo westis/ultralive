@@ -12,26 +12,25 @@ import { createRouter, createWebHistory } from "vue-router/auto";
 // Types
 import type { App } from "vue";
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  // the routes property is handled by the plugin
-});
+export function registerPlugins(app: App) {
+  const router = createRouter({
+    history: createWebHistory(import.meta.env.BASE_URL),
+  });
 
-// Add navigation guard for handling GitHub Pages redirection
-router.beforeEach((to, from, next) => {
-  const redirectPath = sessionStorage.redirect;
-  if (redirectPath) {
-    delete sessionStorage.redirect;
-    if (to.path === "/") {
-      next(redirectPath);
+  router.beforeEach((to, from, next) => {
+    const redirectPath = sessionStorage.redirect;
+    if (redirectPath) {
+      delete sessionStorage.redirect;
+      // Now checking if the navigation is to the base URL of the app
+      if (to.path === router.options.history.base) {
+        next(redirectPath);
+      } else {
+        next();
+      }
     } else {
       next();
     }
-  } else {
-    next();
-  }
-});
+  });
 
-export function registerPlugins(app: App) {
   app.use(vuetify).use(router).use(pinia);
 }

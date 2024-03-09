@@ -16,16 +16,22 @@
       <!-- Card Text for Start Time and Elapsed Time -->
       <v-card-text class="py-2">
         <v-row justify="space-around">
-          <v-col cols="6">
+          <v-col cols="4">
             <div class="text-center">
               <div class="text-overline">Start Time</div>
               <div>{{ raceStartTimeFormatted }}</div>
             </div>
           </v-col>
-          <v-col cols="6">
+          <v-col cols="4">
             <div class="text-center">
               <div class="text-overline">Elapsed Time</div>
               <div>{{ formattedTime }}</div>
+            </div>
+          </v-col>
+          <v-col cols="4">
+            <div class="text-center">
+              <div class="text-overline">Remaining Time</div>
+              <div>{{ remainingTime }}</div>
             </div>
           </v-col>
         </v-row>
@@ -36,47 +42,60 @@
 
 <script setup>
 import { eventRegistry } from "@/events/eventRegistry";
-import { defineProps } from "vue";
+import { defineProps, computed, ref, onMounted } from "vue";
 import { useRaceStore } from "@/stores/useRaceStore";
-import { DateTime } from "luxon";
+import { DateTime, Duration } from "luxon";
 
-// Define props to include eventId
 const props = defineProps({
   eventId: String,
 });
 
-const eventOfficialPage = "https://www.lululemonfurther.com/"; // Replace with actual URL
-const eventFacebookPage = "https://www.facebook.com/groups/1162388407189194"; // Replace with actual URL
-
+// Assuming the event URLs are constants for now
+const eventOfficialPage = "https://www.lululemonfurther.com/";
+const eventFacebookPage = "https://www.facebook.com/groups/1162388407189194";
 const eventName = eventRegistry[props.eventId].eventName;
 const raceStore = useRaceStore();
-
-// Directly use props.eventId for reactive raceStartTime computation
 const raceStartTime = computed(() => raceStore.getRaceStartTime(props.eventId));
 
-const raceStartTimeFormatted = computed(() => {
-  return raceStartTime.value
+const raceStartTimeFormatted = computed(() =>
+  raceStartTime.value
     ? raceStartTime.value.toFormat("yyyy-MM-dd HH:mm:ss")
-    : "Loading...";
-});
+    : "Loading..."
+);
 
 const formattedTime = ref("");
+const remainingTime = ref("");
+
+// Convert ISO 8601 duration to total seconds
+const raceDurationInSeconds = computed(() => {
+  const duration = eventRegistry[props.eventId].raceDuration;
+  return Duration.fromISO(duration).as("seconds");
+});
 
 const updateTimer = () => {
-  if (!raceStartTime.value) return;
+  if (!raceStartTime.value || raceDurationInSeconds.value === undefined) return;
 
   const now = DateTime.now().setZone(raceStartTime.value.zone);
-  const elapsed = now
-    .diff(raceStartTime.value, ["hours", "minutes", "seconds"])
-    .toObject();
+  const elapsedSeconds = now.diff(raceStartTime.value, "seconds").seconds;
+  const remainingSeconds = Math.max(
+    raceDurationInSeconds.value - elapsedSeconds,
+    0
+  );
 
-  formattedTime.value = `${elapsed.hours
-    ?.toString()
-    .padStart(2, "0")}:${elapsed.minutes
-    ?.toString()
-    .padStart(2, "0")}:${Math.floor(elapsed.seconds)
-    ?.toString()
-    .padStart(2, "0")}`;
+  formattedTime.value = formatSecondsAsTime(elapsedSeconds);
+  remainingTime.value = formatSecondsAsTime(remainingSeconds);
+};
+
+const formatSecondsAsTime = (seconds) => {
+  const totalSeconds = Math.floor(seconds);
+  const hours = Math.floor(totalSeconds / 3600)
+    .toString()
+    .padStart(2, "0");
+  const minutes = Math.floor((totalSeconds % 3600) / 60)
+    .toString()
+    .padStart(2, "0");
+  const secs = (totalSeconds % 60).toString().padStart(2, "0");
+  return `${hours}:${minutes}:${secs}`;
 };
 
 setInterval(updateTimer, 1000);

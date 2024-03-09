@@ -9,7 +9,8 @@ export const eventRegistry = {
     fetchData: fetchEventData_20240305_further6days,
     raceStartTime: DateTime.fromISO("2024-03-06T09:05:00", {
       zone: "UTC-08:00",
-    }), // Adjust time zone as needed
+    }),
+    raceDuration: "PT144H",
   },
 
   // Add more events as needed

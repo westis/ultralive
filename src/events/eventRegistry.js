@@ -17,14 +17,20 @@ export const eventRegistry = {
     annotations: [
       {
         distance: 1036.8,
-        name: "Men 6D World Record",
+        name: "6D World Record (men)",
         color: "#388E3C",
         offset: { x: -40, y: 0 },
       },
       {
         distance: 883.631,
-        name: "Women 6D World Record",
+        name: "6D World Record (women)",
         color: "#512DA8",
+        offset: { x: -40, y: 0 },
+      },
+      {
+        distance: 975.654,
+        name: "6D American Record (men)",
+        color: "#5D4037",
         offset: { x: -40, y: 0 },
       },
     ],

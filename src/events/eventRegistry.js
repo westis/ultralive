@@ -33,6 +33,12 @@ export const eventRegistry = {
         color: "#5D4037",
         offset: { x: -40, y: 0 },
       },
+      {
+        distance: 788.579,
+        name: "6D American Record (women)",
+        color: "#455A64",
+        offset: { x: -40, y: 0 },
+      },
     ],
   },
   "2024-03-09-torino-24h": {

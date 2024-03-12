@@ -97,6 +97,21 @@ Chart.register(...registerables);
 Chart.register(zoomPlugin);
 Chart.register(annotationPlugin);
 
+import { useThemeStore } from "@/stores/useThemeStore";
+import { useTheme } from "vuetify";
+
+const themeStore = useThemeStore();
+const vuetifyTheme = useTheme();
+
+// Compute the color palette based on the current theme
+const currentThemeColors = computed(() => {
+  // Vuetify 3 uses the theme's name to switch themes
+  const themeColors = vuetifyTheme.themes.value[themeStore.theme];
+  return themeColors ? themeColors.colors : {};
+});
+
+console.log("currentThemeColors", currentThemeColors.value);
+
 const intervalTime = 3 * 60 * 1000; // 3 minutes in milliseconds
 
 // Define props to receive eventId
@@ -167,6 +182,12 @@ const raceDurationInSeconds = computed(() => {
 const chartOptions = ref({
   responsive: true,
   maintainAspectRatio: false,
+  animation: {
+    duration: 0, // Turn off animation for instant updates
+    onComplete: function () {
+      // Optional: Code to flash the chart or update a "last updated" label to signal the update to the user
+    },
+  },
   plugins: {
     legend: {
       display: true,
@@ -269,42 +290,23 @@ const chartOptions = ref({
   },
 });
 
-const materialDesignColors = [
-  "#F44336", // Red
-  "#E91E63", // Pink
-  "#9C27B0", // Purple
-  "#673AB7", // Deep Purple
-  "#3F51B5", // Indigo
-  "#2196F3", // Blue
-  "#03A9F4", // Light Blue
-  "#00BCD4", // Cyan
-  "#009688", // Teal
-  "#4CAF50", // Green
-  "#8BC34A", // Light Green
-  "#CDDC39", // Lime
-  "#FFEB3B", // Yellow
-  "#FFC107", // Amber
-  "#FF9800", // Orange
-  "#FF5722", // Deep Orange
-  "#795548", // Brown
-  "#607D8B", // Blue Grey
-];
-
 const updateChartData = () => {
   if (!allSplits.value) {
     console.warn(
       "No allSplits data available for the given eventId:",
       props.eventId
     );
-    chartData.value.datasets = [];
+    chartData.value = { labels: [], datasets: [] };
     return;
   }
 
-  // Dynamically assign colors from the Material Design colors array
+  const themeColors = currentThemeColors.value;
+
+  // Dynamically assign colors from the current theme
   const datasets = Object.entries(allSplits.value).map(
     ([runnerId, splits], index) => {
-      const colorIndex = index % materialDesignColors.length; // Loop through colors
-      const color = materialDesignColors[colorIndex]; // Select color
+      const colorKey = `chartColor${(index % 10) + 1}`; // Construct the color key dynamically
+      const color = themeColors[colorKey]; // Get color from the current theme's palette
 
       return {
         label: splits.length > 0 ? splits[0].runnerName : "Unknown",
@@ -326,7 +328,13 @@ const updateChartData = () => {
     }
   );
 
-  chartData.value.datasets = datasets;
+  // Create a new object to trigger reactivity
+  chartData.value = { ...chartData.value, datasets: datasets };
+
+  // If vue-chartjs is properly set up, this will get the underlying Chart.js instance
+  if (chartRef.value && chartRef.value.chart) {
+    chartRef.value.chart.update();
+  }
 };
 
 // Function to update annotations
@@ -420,7 +428,6 @@ watch(
   data,
   () => {
     updateChartData();
-    updateChartAnnotations();
   },
   { deep: true, immediate: true }
 );
@@ -434,6 +441,19 @@ watch(
   },
   { immediate: true }
 );
+
+watch(
+  () => themeStore.theme,
+  () => {
+    updateChartData(); // This function should re-generate the chart's datasets with the new colors
+  },
+  { immediate: true }
+);
+
+// Expose the function to update annotations
+defineExpose({
+  refreshAnnotations: updateChartAnnotations,
+});
 </script>
 
 <style scoped>

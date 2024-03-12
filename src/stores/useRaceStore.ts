@@ -72,6 +72,7 @@ export const useRaceStore = defineStore("race", {
     },
   },
   getters: {
+    // This getter returns the start time for the specified event
     getRaceStartTime: () => (eventId: string) => {
       // Access the event registry directly, as `state` is not used
       if (!eventRegistry[eventId]) {
@@ -80,6 +81,8 @@ export const useRaceStore = defineStore("race", {
       }
       return eventRegistry[eventId].raceStartTime;
     },
+
+    // This getter returns the last recorded split for each runner in the specified event
     getLastSplits: (state) => {
       return (
         eventId: string
@@ -87,6 +90,8 @@ export const useRaceStore = defineStore("race", {
         return state.eventsData[eventId]?.lastSplits;
       };
     },
+
+    // This getter returns all recorded splits for each runner in the specified event
     getAllSplits: (state) => {
       return (
         eventId: string

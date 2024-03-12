@@ -2,9 +2,9 @@
 import AutoImport from "unplugin-auto-import/vite";
 import Components from "unplugin-vue-components/vite";
 import Fonts from "unplugin-fonts/vite";
+import VueRouter from "unplugin-vue-router/vite";
 import Layouts from "vite-plugin-vue-layouts";
 import Vue from "@vitejs/plugin-vue";
-import VueRouter from "unplugin-vue-router/vite";
 import Vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
 
 // Utilities
@@ -26,9 +26,9 @@ export default ({ mode }) => {
       }),
       Vuetify({
         autoImport: true,
-        styles: {
-          configFile: "src/styles/settings.scss",
-        },
+        // styles: {
+        //   configFile: "src/styles/settings.scss",
+        // },
       }),
       Components(),
       Fonts({

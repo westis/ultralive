@@ -14,16 +14,29 @@
 </template>
 
 <script lang="ts" setup>
-import { useTheme } from "vuetify";
+import { useThemeStore } from "@/stores/useThemeStore"; // Import your Pinia theme store
 import { useRouter } from "vue-router";
-import { computed } from "vue";
+import { computed, watch } from "vue";
+import { useTheme } from "vuetify";
 
+const themeStore = useThemeStore(); // Use the theme store
 const theme = useTheme();
 const router = useRouter();
-const isDark = computed(() => theme.global.current.value.dark); // Track if its dark mode
+
+// Compute based on the theme stored in Pinia
+const isDark = computed(() => themeStore.theme === "dark");
+
+// Watch for changes in the Pinia store and update Vuetify's theme accordingly
+watch(
+  isDark,
+  (newValue) => {
+    theme.global.name.value = newValue ? "dark" : "light";
+  },
+  { immediate: true }
+);
 
 function toggleTheme() {
-  theme.global.name.value = theme.global.current.value.dark ? "light" : "dark";
+  themeStore.toggleTheme(); // Toggle the theme in the Pinia store instead of directly in Vuetify
 }
 
 function goToHome() {

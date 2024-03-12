@@ -1,16 +1,19 @@
 // components/RaceTimer.vue
 <template>
-  <v-container class="py-0">
+  <v-container class="pa-0">
     <v-card>
       <!-- Card Subtitle or Toolbar for Links -->
       <v-toolbar density="compact">
         <v-toolbar-title>{{ eventName }}</v-toolbar-title>
-        <v-spacer></v-spacer>
-        <v-btn text :href="eventOfficialPage" target="_blank"
-          >Official Timing</v-btn
-        >
-        <v-btn text :href="eventFacebookPage" target="_blank">Discuss</v-btn>
-        <!-- Add more links as needed -->
+
+        <v-btn text :href="eventOfficialPage" target="_blank">
+          <v-icon left>mdi-clock</v-icon>
+          <span class="hidden-sm-and-down">Official Timing</span>
+        </v-btn>
+        <v-btn text :href="eventFacebookPage" target="_blank">
+          <v-icon left>mdi-forum</v-icon>
+          <span class="hidden-sm-and-down">Discuss</span>
+        </v-btn>
       </v-toolbar>
 
       <!-- Card Text for Start Time and Elapsed Time -->
@@ -79,7 +82,16 @@ const updateTimer = () => {
   if (!raceStartTime.value || raceDurationInSeconds.value === undefined) return;
 
   const now = DateTime.now().setZone(raceStartTime.value.zone);
-  const elapsedSeconds = now.diff(raceStartTime.value, "seconds").seconds;
+  let elapsedSeconds = now.diff(raceStartTime.value, "seconds").seconds;
+  const raceEndTime = raceStartTime.value.plus({
+    seconds: raceDurationInSeconds.value,
+  });
+
+  // Ensure elapsed time does not exceed the race duration
+  if (now > raceEndTime) {
+    elapsedSeconds = raceDurationInSeconds.value; // Cap elapsed time at race duration
+  }
+
   const remainingSeconds = Math.max(
     raceDurationInSeconds.value - elapsedSeconds,
     0
@@ -90,17 +102,23 @@ const updateTimer = () => {
 };
 
 const formatSecondsAsTime = (seconds) => {
-  const totalSeconds = Math.floor(seconds);
-  const hours = Math.floor(totalSeconds / 3600)
+  const raceTimeInSeconds = Math.floor(seconds);
+  const hours = Math.floor(raceTimeInSeconds / 3600)
     .toString()
     .padStart(2, "0");
-  const minutes = Math.floor((totalSeconds % 3600) / 60)
+  const minutes = Math.floor((raceTimeInSeconds % 3600) / 60)
     .toString()
     .padStart(2, "0");
-  const secs = (totalSeconds % 60).toString().padStart(2, "0");
+  const secs = (raceTimeInSeconds % 60).toString().padStart(2, "0");
   return `${hours}:${minutes}:${secs}`;
 };
 
 setInterval(updateTimer, 1000);
 onMounted(updateTimer);
 </script>
+
+<style scoped>
+.text-overline {
+  line-height: 1.2rem; /* Adjust this value as needed */
+}
+</style>

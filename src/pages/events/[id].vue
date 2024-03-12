@@ -1,11 +1,11 @@
 <template>
-  <v-container class="pa-5">
-    <v-row justify="center">
-      <v-col cols="12" class="py-1">
+  <v-container class="pa-5 h-100">
+    <v-row justify="center" class="h-100">
+      <v-col cols="12" class="py-1 h-auto">
         <!-- Pass eventId as a prop to RaceTimer -->
         <RaceTimer :eventId="eventId" />
       </v-col>
-      <v-col cols="12" class="py-1">
+      <v-col cols="12" class="py-1 h-100">
         <!-- Pass eventId as a prop to RaceChart -->
         <RaceChart :eventId="eventId" />
       </v-col>

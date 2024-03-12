@@ -1,6 +1,6 @@
 const axios = require("axios");
 const cheerio = require("cheerio");
-const { calculateTotalSeconds, calculatePace } = require("./timeUtils");
+const { calculateraceTimeInSeconds, calculatePace } = require("./timeUtils");
 
 // Example runner IDs array
 // Update this array with actual IDs for each event
@@ -19,7 +19,7 @@ async function fetchRunnerData(runnerId) {
         const cols = $(element).find("td");
         if (cols.length) {
           // Ensure there are columns to process
-          const kmDistance = parseFloat(
+          const distanceInKm = parseFloat(
             $(cols[1])
               .text()
               .replace(",", ".")
@@ -28,10 +28,10 @@ async function fetchRunnerData(runnerId) {
           const time = $(cols[2]).text().trim();
           runnerData.push({
             pid: runnerId,
-            kmDistance,
+            distanceInKm,
             time,
-            totalSeconds: calculateTotalSeconds(time),
-            pace: calculatePace(time, kmDistance),
+            raceTimeInSeconds: calculateraceTimeInSeconds(time),
+            pace: calculatePace(time, distanceInKm),
           });
         }
       }

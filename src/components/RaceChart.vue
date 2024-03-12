@@ -1,23 +1,24 @@
 // src/components/RaceChart.vue
 <template>
-  <v-container class="pa-0">
-    <v-card flat>
+  <v-container class="pa-0 h-100">
+    <v-card flat class="h-75">
       <v-tabs v-model="tab" background-color="indigo" dark>
         <v-tab>Chart</v-tab>
         <v-tab>Last Splits</v-tab>
       </v-tabs>
 
-      <v-window v-model="tab">
-        <v-window-item>
+      <v-window v-model="tab" class="h-100">
+        <v-window-item class="h-100">
           <!-- Chart tab content -->
           <div v-if="loading">Loading data...</div>
-          <vue-apex-charts
-            v-else
-            type="line"
-            height="550"
-            :options="chartOptions"
-            :series="series"
-          ></vue-apex-charts>
+          <v-container class="h-100" fluid>
+            <Line
+              v-if="chartData && chartData.datasets.length > 0"
+              ref="chartRef"
+              :data="chartData"
+              :options="chartOptions"
+            />
+          </v-container>
         </v-window-item>
 
         <v-window-item>
@@ -26,20 +27,12 @@
             v-model:expanded="expanded"
             :headers="headers"
             :items="dataTable"
-            item-value="pid"
+            item-value="runnerId"
             show-expand
             class="elevation-1"
             single-expand
             density="compact"
           >
-            <!-- <template v-slot:item="{ item }">
-              <tr>
-                <td>{{ item.name }}</td>
-                <td>{{ item.kmDistance }} / {{ item.mileDistance }}</td>
-                <td>{{ item.estimatedDistance.toFixed(2) }} km</td>
-                <td>{{ item.time }}</td>
-              </tr>
-            </template> -->
             <template v-slot:expanded-row="{ item }">
               <td class="px-5" :colspan="headers.length">
                 <v-table class="text-caption" density="compact">
@@ -53,19 +46,23 @@
                     </thead>
                     <tbody>
                       <tr
-                        v-for="(split, index) in filterSplitsForPid(item.pid)"
+                        v-for="(split, index) in filterSplitsForRunnerId(
+                          item.runnerId
+                        )"
                         :key="index"
                       >
-                        <td>{{ formatTimeWithSeconds(split.totalSeconds) }}</td>
+                        <td>
+                          {{ formatTimeWithSeconds(split.raceTimeInSeconds) }}
+                        </td>
                         <td>
                           {{
                             `${
-                              split.kmDistance
-                            } km / ${split.mileDistance.toFixed(2)} mi`
+                              split.distanceInKm
+                            } km / ${split.distanceInMiles.toFixed(2)} mi`
                           }}
                         </td>
                         <td>
-                          {{ split.kmPace }} min/km -
+                          {{ split.kmAvgPace }} min/km -
                           {{ split.milePace }} min/mi
                         </td>
                       </tr>
@@ -85,10 +82,20 @@
 </template>
 
 <script setup>
-import VueApexCharts from "vue3-apexcharts";
 import { useRaceStore } from "@/stores/useRaceStore";
 import { eventRegistry } from "@/events/eventRegistry";
 import useRaceData from "@/composables/useRaceData";
+import { Duration } from "luxon";
+
+// Imports for the chart
+import { Line } from "vue-chartjs";
+import { Chart, registerables } from "chart.js";
+import zoomPlugin from "chartjs-plugin-zoom";
+import annotationPlugin from "chartjs-plugin-annotation";
+
+Chart.register(...registerables);
+Chart.register(zoomPlugin);
+Chart.register(annotationPlugin);
 
 const intervalTime = 3 * 60 * 1000; // 3 minutes in milliseconds
 
@@ -99,7 +106,8 @@ const props = defineProps({
 
 const raceStore = useRaceStore();
 const allSplits = computed(() => raceStore.getAllSplits(props.eventId));
-console.log(allSplits.value);
+watch(allSplits, { immediate: true, deep: true });
+
 const lastSplits = computed(() => raceStore.getLastSplits(props.eventId));
 
 // Integration with useRaceData for fetching data, handling loading state, and caching
@@ -110,264 +118,259 @@ const tab = ref(0);
 const expanded = ref([]);
 
 const headers = ref([
-  { title: "Name", key: "name" },
+  { title: "Name", key: "runnerName" },
   { title: "Distance", key: "distance" },
-  { title: "Estimated Distance", key: "estimatedDistance" }, // Add this line
+  { title: "Estimated Distance", key: "ProjectedDistanceInKm" }, // Add this line
   { title: "Last Registration", key: "time" },
 ]);
-
-const thresholdSeconds = 10;
-
-function filterSplitsForPid(pid) {
-  const splits = allSplits.value[pid] || [];
-  return splits.reduce((acc, curr) => {
-    if (
-      !acc.length ||
-      Math.abs(curr.totalSeconds - acc[acc.length - 1].totalSeconds) >
-        thresholdSeconds
-    ) {
-      acc.push(curr);
-    }
-    return acc;
-  }, []);
-}
 
 // Data for the table below the chart
 const dataTable = computed(() => {
   return Object.values(lastSplits.value || {})
     .map((item) => ({
       ...item,
-      // Combine kmDistance and mileDistance
-      distance: `${item.kmDistance.toFixed(2)} km / ${item.mileDistance.toFixed(
+      // Combine distanceInKm and distanceInMiles
+      distance: `${item.distanceInKm.toFixed(
         2
-      )} mi`,
+      )} km / ${item.distanceInMiles.toFixed(2)} mi`,
       // Round estimatedDistance to two decimals
-      estimatedDistance: `${item.estimatedDistance.toFixed(2)} km`,
-      time: formatTimeWithSeconds(item.totalSeconds),
-      kmPace: item.kmPace,
+      ProjectedDistanceInKm: `${item.ProjectedDistanceInKm.toFixed(2)} km`,
+      time: formatTimeWithSeconds(item.raceTimeInSeconds),
+      kmAvgPace: item.kmAvgPace,
       milePace: item.milePace,
     }))
-    .sort((a, b) => b.kmDistance - a.kmDistance);
+    .sort((a, b) => b.distanceInKm - a.distanceInKm);
 });
 
-function toggleExpand(item) {
-  expanded.value = expanded.value.includes(item.pid) ? [] : [item.pid];
-}
+const chartRef = ref(null);
 
-// Define your chart options here
-// Chart options might be static or dynamically adjusted based on the event's data or requirements
+// Function to reset the chart's zoom
+const resetZoom = () => {
+  // Access the chart instance from the Vue Chart.js component
+  if (chartRef.value && chartRef.value.chart) {
+    chartRef.value.chart.resetZoom();
+  }
+};
+
+const chartData = ref({
+  labels: [], // You might not need labels for a scatter/line chart with x/y values
+  datasets: [],
+});
+
+const chartAnnotations = ref([]);
+
+const raceDurationInSeconds = computed(() => {
+  const duration = eventRegistry[props.eventId].raceDuration;
+  return Duration.fromISO(duration).as("seconds");
+});
+
 const chartOptions = ref({
-  chart: {
-    id: "race-chart",
-    toolbar: {
-      autoSelected: "zoom",
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      display: true,
+      position: "bottom",
+      labels: {
+        usePointStyle: true,
+        pointStyle: "circle",
+      },
     },
-    animations: {
-      enabled: true,
-    },
-  },
+    zoom: {
+      zoom: {
+        wheel: {
+          enabled: true,
+        },
+        pinch: {
+          enabled: true,
+        },
+        mode: "xy",
+      },
+      pan: {
+        enabled: true,
+        mode: "xy",
 
-  xaxis: {
-    type: "numeric",
-    title: {
-      text: "Race Time (HH:MM)",
+        // Set limits for panning
+      },
+      limits: {
+        x: { min: "original", max: raceDurationInSeconds },
+        y: { min: 0 },
+      },
     },
-    labels: {
-      formatter: (val) => formatTime(val), // Use formatTime for X-axis labels
-    },
-    axisTicks: {
-      show: true,
-    },
-    axisBorder: {
-      show: true,
-    },
-    tickAmount: 8,
-  },
-  yaxis: {
-    title: {
-      text: "Estimated Distance (km)",
-    },
-    labels: {
-      formatter: (val) => val.toFixed(2), // Use formatPace for Y-axis labels
-    },
-  },
-  stroke: {
-    curve: "straight",
-  },
-  markers: {
-    size: 0,
-  },
-  tooltip: {
-    shared: true,
-    intersect: false,
-    theme: "dark",
-    custom: function ({ series, seriesIndex, dataPointIndex, w }) {
-      const data = w.config.series[seriesIndex].data[dataPointIndex];
+    tooltip: {
+      callbacks: {
+        title: function (tooltipItems) {
+          // Map through all tooltip items and return their dataset runner names
+          return tooltipItems.map((tooltipItem) => {
+            const runnerName = tooltipItem.dataset.runnerName;
+            return runnerName || "Unknown Runner";
+          });
+        },
+        label: function (context) {
+          // Here, context represents a single tooltip item for a dataset
+          const split = context.raw;
+          const formattedTime = formatTimeWithSeconds(split.x);
 
-      const name = w.globals.seriesNames[seriesIndex];
-      const yValue = series[seriesIndex][dataPointIndex];
-      const estimatedDistance = data.formattedEstimatedDistance;
-      const Distance = data.formattedDistance;
+          // You may want to include the runner's name with each tooltip item
+          const runnerName = context.dataset.runnerName;
 
-      // Accessing the x-axis value (time) from w.globals.seriesX, which holds the time values.
-      const timeValue = w.globals.seriesX[seriesIndex][dataPointIndex];
-      const formattedTime = timeValue
-        ? formatTimeWithSeconds(timeValue)
-        : "N/A";
-
-      return `
-      <div class="pa-2">
-      <div style="font-weight: bold;">${name}</div>
-      <div>Time: ${formattedTime}</div>
-       <div>Distance: ${Distance}</div>
-      <div>Estimated Distance: ${estimatedDistance}</div>
-      </div>
-    `;
+          // Return the label for each tooltip item, including the runner's name
+          return [
+            `Time: ${formattedTime}`,
+            `Distance: ${split.formattedDistance}`,
+            `Estimated Distance: ${split.formattedProjectedDistanceInKm}`,
+          ];
+        },
+      },
+      backgroundColor: "#333", // Adjust color as needed
+      titleColor: "#fff",
+      bodyColor: "#fff",
+      mode: "nearest",
+      axis: "x",
+      intersect: false,
+      padding: 10,
+    },
+    annotation: {
+      annotations: chartAnnotations,
     },
   },
-  legend: {
-    show: true,
-  },
-  annotations: {
-    xaxis: [], // Initialize xaxis if needed
-    yaxis: [], // Ensure yaxis is initialized as an empty array
+  scales: {
+    x: {
+      type: "linear",
+      position: "bottom",
+      title: {
+        display: true,
+        text: "Race Time (HH:MM)",
+        font: {
+          weight: "bold",
+        },
+      },
+      ticks: {
+        // Adjust how ticks are formatted if needed
+        callback: function (value) {
+          return formatTime(value); // Your custom formatTime function
+        },
+      },
+    },
+    y: {
+      title: {
+        display: true,
+        text: "Estimated Distance (km)",
+        font: {
+          weight: "bold",
+        },
+      },
+      ticks: {
+        callback: function (value) {
+          return value.toFixed(2); // Format for precision
+        },
+      },
+    },
   },
 });
 
-const series = ref([]);
+const materialDesignColors = [
+  "#F44336", // Red
+  "#E91E63", // Pink
+  "#9C27B0", // Purple
+  "#673AB7", // Deep Purple
+  "#3F51B5", // Indigo
+  "#2196F3", // Blue
+  "#03A9F4", // Light Blue
+  "#00BCD4", // Cyan
+  "#009688", // Teal
+  "#4CAF50", // Green
+  "#8BC34A", // Light Green
+  "#CDDC39", // Lime
+  "#FFEB3B", // Yellow
+  "#FFC107", // Amber
+  "#FF9800", // Orange
+  "#FF5722", // Deep Orange
+  "#795548", // Brown
+  "#607D8B", // Blue Grey
+];
 
-const updateSeries = () => {
-  // Safeguard against allSplits.value being undefined or null
+const updateChartData = () => {
   if (!allSplits.value) {
     console.warn(
       "No allSplits data available for the given eventId:",
       props.eventId
     );
-    series.value = []; // Reset the series to empty array to clear the chart
+    chartData.value.datasets = [];
     return;
   }
 
-  series.value = Object.entries(allSplits.value).map(([pid, splits]) => {
-    // Filter duplicates within the threshold before mapping for the chart
-    const filteredSplits = splits.reduce(
-      (filtered, currentSplit, index, array) => {
-        // Always add the first split
-        if (index === 0) {
-          filtered.push(currentSplit);
-          return filtered;
-        }
+  // Dynamically assign colors from the Material Design colors array
+  const datasets = Object.entries(allSplits.value).map(
+    ([runnerId, splits], index) => {
+      const colorIndex = index % materialDesignColors.length; // Loop through colors
+      const color = materialDesignColors[colorIndex]; // Select color
 
-        // Add the split if it's beyond the threshold from the last split added
-        const lastSplitAdded = filtered[filtered.length - 1];
-        if (
-          Math.abs(lastSplitAdded.totalSeconds - currentSplit.totalSeconds) >
-          thresholdSeconds
-        ) {
-          filtered.push(currentSplit);
-        }
-        return filtered;
-      },
-      []
-    );
+      return {
+        label: splits.length > 0 ? splits[0].runnerName : "Unknown",
+        runnerName: splits.length > 0 ? splits[0].runnerName : "Unknown",
+        data: splits.map((split) => ({
+          x: split.raceTimeInSeconds,
+          y: split.ProjectedDistanceInKm,
+          formattedDistance: `${split.distanceInKm.toFixed(
+            2
+          )} km / ${split.distanceInMiles.toFixed(2)} mi`,
+          formattedProjectedDistanceInKm: `${split.ProjectedDistanceInKm.toFixed(
+            2
+          )} km / ${(split.ProjectedDistanceInKm * 0.621371).toFixed(2)} mi`,
+        })),
+        pointRadius: 0,
+        borderColor: color, // Use dynamic color for the border
+        backgroundColor: color, // Use the same dynamic color for the background
+      };
+    }
+  );
 
-    return {
-      name: filteredSplits.length > 0 ? filteredSplits[0].name : "Unknown", // Use the runner's name or a default
-      data: filteredSplits.map((split) => ({
-        x: split.totalSeconds,
-        y: split.estimatedDistance,
-        formattedDistance: `${
-          typeof split.kmDistance === "number"
-            ? split.kmDistance.toFixed(2)
-            : "N/A"
-        } km / ${
-          typeof split.mileDistance === "number"
-            ? split.mileDistance.toFixed(2)
-            : "N/A"
-        } mi`,
-        formattedEstimatedDistance: `${
-          typeof split.estimatedDistance === "number"
-            ? split.estimatedDistance.toFixed(2)
-            : "N/A"
-        } km / ${(typeof split.estimatedDistance === "number"
-          ? split.estimatedDistance * 0.621371
-          : "N/A"
-        ).toFixed(2)} mi`,
-      })),
-    };
-  });
+  chartData.value.datasets = datasets;
 };
 
-// Function to update chart annotations dynamically based on the event
-function updateChartAnnotations() {
-  const eventInfo = eventRegistry[props.eventId];
-  if (!eventInfo || !eventInfo.annotations) return;
-
-  const yAnnotations = eventInfo.annotations.map((record) => ({
-    y: record.distance,
-    borderColor: record.color, // Use the color property for the border
-    strokeDashArray: 5,
-    strokeWidth: 30,
-    label: {
-      borderColor: record.color, // Use the color property for the label border
-      offsetX: 10,
-      offsetY: record.offset.y,
-      style: {
-        color: "#fff", // You can keep the text color white for contrast
-        background: record.color, // Use the color property for the background
+// Function to update annotations
+const updateChartAnnotations = () => {
+  const eventConfig = eventRegistry[props.eventId];
+  if (eventConfig && eventConfig.annotations) {
+    chartAnnotations.value = eventConfig.annotations.map((annotation) => ({
+      type: "line",
+      mode: "horizontal",
+      scaleID: "y",
+      value: annotation.distance,
+      borderColor: annotation.color,
+      borderWidth: 1,
+      borderDash: [5, 5],
+      label: {
+        display: true,
+        content: annotation.name,
+        backgroundColor: annotation.color,
+        padding: 3,
+        borderRadius: 3,
+        position: "start",
+        xAdjust: annotation.offset.x,
+        yAdjust: annotation.offset.y,
       },
-      text: record.name,
-      position: "left",
-      textAnchor: "start",
-    },
-  }));
-
-  chartOptions.value.annotations.yaxis = yAnnotations;
-  adjustYAxisBounds(eventInfo.annotations, series.value);
-}
-
-function adjustYAxisBounds(records) {
-  // Extract distances from records
-  const recordDistances = records.map((record) => record.distance);
-  // Find the min and max record distances
-  const minRecordDistance = Math.min(...recordDistances);
-  const maxRecordDistance = Math.max(...recordDistances);
-
-  // Extract all Y values (distances) from the series data
-  const dataPointsYValues = series.value.flatMap((s) =>
-    s.data.map((point) => point.y)
-  );
-  // Find the min and max values from the series data
-  const minDataPoint = Math.min(...dataPointsYValues);
-  const maxDataPoint = Math.max(...dataPointsYValues);
-
-  // Determine the overall min and max values to set on the Y-axis
-  const minYValue = Math.min(minRecordDistance, minDataPoint);
-  const maxYValue = Math.max(maxRecordDistance, maxDataPoint);
-
-  // Optionally, add a buffer to these values for better chart aesthetics
-  const buffer = (maxYValue - minYValue) * 0.05; // Adjust buffer size as needed
-
-  // Set the Y-axis range in the chart options
-  chartOptions.value.yaxis = {
-    ...chartOptions.value.yaxis,
-    min: minYValue - buffer,
-    max: maxYValue + buffer,
-  };
-}
+      font: {
+        size: 10,
+      },
+    }));
+  }
+};
 
 // Helper function to format time for the X-axis
-const formatTime = (totalSeconds) => {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
+const formatTime = (raceTimeInSeconds) => {
+  const hours = Math.floor(raceTimeInSeconds / 3600);
+  const minutes = Math.floor((raceTimeInSeconds % 3600) / 60);
   return `${hours.toString().padStart(2, "0")}:${minutes
     .toString()
     .padStart(2, "0")}`;
 };
 
-const formatTimeWithSeconds = (totalSeconds) => {
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = Math.floor(totalSeconds % 60);
+const formatTimeWithSeconds = (raceTimeInSeconds) => {
+  const hours = Math.floor(raceTimeInSeconds / 3600);
+  const minutes = Math.floor((raceTimeInSeconds % 3600) / 60);
+  const seconds = Math.floor(raceTimeInSeconds % 60);
   return `${hours.toString().padStart(2, "0")}:${minutes
     .toString()
     .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
@@ -385,16 +388,28 @@ const formatPace = (paceInSeconds) => {
 
 let dataFetchInterval;
 
-onMounted(() => {
-  fetchData().then(() => {
-    updateChartAnnotations(); // Call after fetching data
-    updateSeries(); // Ensure series are also updated
-  });
-  dataFetchInterval = setInterval(() => {
-    fetchData().then(() => {
-      updateChartAnnotations(); // Also update annotations periodically with new data
-    });
+onMounted(async () => {
+  await fetchData();
+  updateChartData();
+  updateChartAnnotations();
+
+  const canvas = chartRef.value.$el; // Assuming chartRef is a ref to your chart component
+  if (canvas) {
+    canvas.addEventListener("dblclick", resetZoom);
+  }
+
+  dataFetchInterval = setInterval(async () => {
+    await fetchData();
+    // Conditional updateChartAnnotations could be here if needed
   }, intervalTime);
+});
+
+onBeforeUnmount(() => {
+  // Clean up the event listener when the component is about to unmount
+  const canvas = chartRef.value.$el;
+  if (canvas) {
+    canvas.removeEventListener("dblclick", resetZoom);
+  }
 });
 
 onUnmounted(() => {
@@ -404,11 +419,8 @@ onUnmounted(() => {
 watch(
   data,
   () => {
-    updateSeries();
-    const eventInfo = eventRegistry[props.eventId];
-    if (eventInfo && eventInfo.records) {
-      updateChartAnnotations(eventInfo.records); // This will also call adjustYAxisBounds internally
-    }
+    updateChartData();
+    updateChartAnnotations();
   },
   { deep: true, immediate: true }
 );
@@ -417,7 +429,7 @@ watch(
   () => props.eventId,
   () => {
     fetchData().then(() => {
-      updateChartAnnotations(); // Ensure annotations are updated when eventId changes
+      // updateChartAnnotations(); // Ensure annotations are updated when eventId changes
     });
   },
   { immediate: true }

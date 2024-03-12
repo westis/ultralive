@@ -1,11 +1,32 @@
-// src/events/eventRegistry.js
-
+// src/events/eventRegistry.ts
 import { DateTime } from "luxon";
-import { fetchEventData_20240305_further6days } from "@/api/2024-03-05-further-6days";
-import { fetchEventData_20240309_torino24h } from "@/api/2024-03-09-torino-24h";
+import { fetchEventData_20240305_further6days } from "@/api/220240305_further6days";
+import { fetchEventData_20240309_torino24h } from "@/api/20240309-torino24h";
+import { NormalizedEventData } from "@/types/NormalizedEvent.interface";
 
-export const eventRegistry = {
-  "2024-03-05-further-6days": {
+interface Annotation {
+  distance: number;
+  name: string;
+  color: string;
+  offset: { x: number; y: number };
+}
+
+interface EventConfig {
+  eventName: string;
+  fetchData: () => Promise<NormalizedEventData[]>;
+  raceStartTime: DateTime;
+  raceDuration: string;
+  eventOfficialPage: string;
+  eventFacebookPage: string;
+  annotations: Annotation[];
+}
+
+interface EventRegistry {
+  [key: string]: EventConfig;
+}
+
+export const eventRegistry: EventRegistry = {
+  "220240305_further6days": {
     eventName: "FURTHER 6 Days",
     fetchData: fetchEventData_20240305_further6days,
     raceStartTime: DateTime.fromISO("2024-03-06T09:05:00", {
@@ -17,31 +38,19 @@ export const eventRegistry = {
     annotations: [
       {
         distance: 1036.8,
-        name: "6D World Record (men)",
+        name: "Men 6D World Record",
         color: "#388E3C",
-        offset: { x: -40, y: 0 },
+        offset: { x: 0, y: 0 },
       },
       {
         distance: 883.631,
-        name: "6D World Record (women)",
+        name: "Women 6D World Record",
         color: "#512DA8",
-        offset: { x: -40, y: 0 },
-      },
-      {
-        distance: 975.654,
-        name: "6D American Record (men)",
-        color: "#5D4037",
-        offset: { x: -40, y: 0 },
-      },
-      {
-        distance: 788.579,
-        name: "6D American Record (women)",
-        color: "#455A64",
-        offset: { x: -40, y: 0 },
+        offset: { x: 0, y: 0 },
       },
     ],
   },
-  "2024-03-09-torino-24h": {
+  "20240309-torino24h": {
     // This is the key for the new event
     eventName: "Torino 24 Hours",
     fetchData: fetchEventData_20240309_torino24h,
@@ -57,25 +66,25 @@ export const eventRegistry = {
         distance: 272.086,
         name: "Nordic Record (Men)",
         color: "#008FFB",
-        offset: { x: -40, y: 0 },
+        offset: { x: 0, y: 0 },
       },
       {
         distance: 261.17,
         name: "European/Nordic Record (Women)",
         color: "#775DD0",
-        offset: { x: -40, y: 0 },
+        offset: { x: 0, y: 0 },
       },
       {
         distance: 277.439,
         name: "Course Record (Men)",
         color: "#008FFB",
-        offset: { x: -40, y: 0 },
+        offset: { x: 0, y: 0 },
       },
       {
         distance: 244.495,
         name: "Course Record (Women)",
         color: "#775DD0",
-        offset: { x: -40, y: 0 },
+        offset: { x: 0, y: 0 },
       },
     ],
   },

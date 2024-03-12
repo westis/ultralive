@@ -1,78 +1,98 @@
-// src/stores/useRaceStore.js
+// src/stores/useRaceStore.ts
 import { defineStore } from "pinia";
 import { eventRegistry } from "@/events/eventRegistry";
-import { calculateTotalSeconds } from "@/utils/timeUtils";
+import { NormalizedEventData } from "@/types/NormalizedEvent.interface";
+
+// Define interfaces for state structure
+interface EventData {
+  allSplits: Record<string, NormalizedEventData[]>;
+  lastSplits: Record<string, NormalizedEventData>;
+}
+
+interface EventsData {
+  [eventId: string]: {
+    allSplits: Record<string, NormalizedEventData[]>; // Corrected
+    lastSplits: Record<string, NormalizedEventData>; // Corrected
+  };
+}
 
 export const useRaceStore = defineStore("race", {
-  state: () => ({
-    eventsData: {}, // Stores data for each event, including allSplits by pid and the latest splits
+  state: (): { eventsData: EventsData } => ({
+    eventsData: {}, // Initializing with proper type
   }),
   actions: {
-    async fetchData(eventId) {
+    async fetchData(eventId: string) {
       const eventConfig = eventRegistry[eventId];
       if (!eventConfig) {
         throw new Error("Event not found");
       }
 
       try {
-        const splits = await eventConfig.fetchData();
-        if (!this.eventsData[eventId]) {
-          this.eventsData[eventId] = {
-            allSplits: {},
-            lastSplits: {},
-          };
-        }
+        const splits: NormalizedEventData[] = await eventConfig.fetchData();
+
+        const eventState: EventData = this.eventsData[eventId] || {
+          allSplits: {},
+          lastSplits: {},
+        };
 
         splits.forEach((split) => {
-          // Calculate totalSeconds once and store it
-          const totalSeconds = calculateTotalSeconds(split.time);
+          const runnerId = split.runnerId;
 
-          // Group allSplits by pid
-          if (!this.eventsData[eventId].allSplits[split.pid]) {
-            this.eventsData[eventId].allSplits[split.pid] = [];
+          // Ensure initialization of arrays and objects for the runnerId
+          if (!eventState.allSplits[runnerId]) {
+            eventState.allSplits[runnerId] = [];
           }
-          this.eventsData[eventId].allSplits[split.pid].push({
-            ...split,
-            totalSeconds,
-          });
 
-          // Update lastSplits
-          const currentLastSplit =
-            this.eventsData[eventId].lastSplits[split.pid];
+          eventState.allSplits[runnerId].push(split);
+
+          // Determine if this is the latest split
+          const currentLastSplit = eventState.lastSplits[runnerId];
           if (
             !currentLastSplit ||
-            totalSeconds > calculateTotalSeconds(currentLastSplit.time)
+            split.raceTimeInSeconds > currentLastSplit.raceTimeInSeconds
           ) {
-            this.eventsData[eventId].lastSplits[split.pid] = {
-              ...split,
-              totalSeconds,
-            };
+            eventState.lastSplits[runnerId] = split;
           }
-          // Sort the splits array by totalSeconds for the current pid
-          this.eventsData[eventId].allSplits[split.pid].sort(
-            (a, b) => a.totalSeconds - b.totalSeconds
+
+          // Sort the splits array by raceTimeInSeconds for the current runnerId
+          eventState.allSplits[runnerId].sort(
+            (a, b) => a.raceTimeInSeconds - b.raceTimeInSeconds
           );
         });
+
+        // Update or initialize the event data in the store
+        this.eventsData[eventId] = eventState;
       } catch (err) {
-        console.error("Error fetching event data:", err.message);
+        if (err instanceof Error) {
+          console.error("Error fetching event data:", err.message);
+        } else {
+          console.error("An unexpected error occurred");
+        }
       }
     },
   },
   getters: {
-    // Getters to retrieve race start time and the last splits for display
-    getRaceStartTime: (state) => (eventId) => {
+    getRaceStartTime: () => (eventId: string) => {
+      // Access the event registry directly, as `state` is not used
       if (!eventRegistry[eventId]) {
         console.error("Event not found:", eventId);
         return null;
       }
       return eventRegistry[eventId].raceStartTime;
     },
-    getLastSplits: (state) => (eventId) => {
-      return state.eventsData[eventId]?.lastSplits;
+    getLastSplits: (state) => {
+      return (
+        eventId: string
+      ): Record<string, NormalizedEventData> | undefined => {
+        return state.eventsData[eventId]?.lastSplits;
+      };
     },
-    // Getter to retrieve all splits for the chart
-    getAllSplits: (state) => (eventId) => {
-      return state.eventsData[eventId]?.allSplits;
+    getAllSplits: (state) => {
+      return (
+        eventId: string
+      ): Record<string, NormalizedEventData[]> | undefined => {
+        return state.eventsData[eventId]?.allSplits;
+      };
     },
   },
 });

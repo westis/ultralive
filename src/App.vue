@@ -1,8 +1,8 @@
 // src/App.vue
 <template>
-  <v-app class="h-screen">
+  <v-app>
     <AppBar />
-    <v-main class="h-100">
+    <v-main>
       <router-view />
     </v-main>
     <v-footer color="primary" app>

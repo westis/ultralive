@@ -1,17 +1,17 @@
 // src/components/RaceChart.vue
 <template>
-  <v-container class="pa-0 h-100">
-    <v-card flat class="h-75">
+  <v-container class="pa-0">
+    <v-card flat>
       <v-tabs v-model="tab" background-color="indigo" dark>
         <v-tab>Chart</v-tab>
         <v-tab>Last Splits</v-tab>
       </v-tabs>
 
-      <v-window v-model="tab" class="h-100">
-        <v-window-item class="h-100">
+      <v-window v-model="tab" class="">
+        <v-window-item class="">
           <!-- Chart tab content -->
           <div v-if="loading">Loading data...</div>
-          <v-container class="h-100" fluid>
+          <v-container class="chart-container" fluid>
             <Line
               v-if="chartData && chartData.datasets.length > 0"
               ref="chartRef"
@@ -226,7 +226,6 @@ const chartOptions = ref({
       titleColor: "#fff",
       bodyColor: "#fff",
       mode: "nearest",
-      axis: "x",
       intersect: false,
       padding: 10,
     },
@@ -238,6 +237,7 @@ const chartOptions = ref({
     x: {
       type: "linear",
       position: "bottom",
+      max: raceDurationInSeconds.value,
       title: {
         display: true,
         text: "Race Time (HH:MM)",
@@ -435,3 +435,9 @@ watch(
   { immediate: true }
 );
 </script>
+
+<style scoped>
+.chart-container {
+  min-height: 55dvh;
+}
+</style>

@@ -12,8 +12,17 @@
 </template>
 
 <script lang="ts" setup>
+import { computed } from "vue";
+import { useSanityClient } from "vue-sanity";
 import { useThemeStore } from "@/stores/useThemeStore"; // Import the theme store
 import { useTheme } from "vuetify";
+
+// Initialize Sanity client
+useSanityClient({
+  projectId: "7lcnlqg7", // Replace with your project ID
+  dataset: "yourDataset", // Replace with your dataset
+  useCdn: process.env.NODE_ENV === "production",
+});
 
 const themeStore = useThemeStore();
 const theme = useTheme();
